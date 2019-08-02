@@ -670,10 +670,14 @@ public class JParser {
         if (!superInterfaceTypes.isEmpty()) {
           QualifiedIdentifierListTreeImpl superInterfaces = new QualifiedIdentifierListTreeImpl(
             new ArrayList<>(),
-            new ArrayList<>() // FIXME separators
+            new ArrayList<>()
           );
-          for (Object o : superInterfaceTypes) {
-            superInterfaces.add(convertType((Type) o));
+          for (int i = 0; i < superInterfaceTypes.size(); i++) {
+            Type o = (Type) superInterfaceTypes.get(i);
+            if (i > 0) {
+              superInterfaces.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+            }
+            superInterfaces.add(convertType(o));
           }
           t.completeInterfaces(
             firstTokenBefore((ASTNode) superInterfaceTypes.get(0), kind == Tree.Kind.INTERFACE ? TerminalTokens.TokenNameextends : TerminalTokens.TokenNameimplements),

@@ -142,6 +142,11 @@ public class JParserTest {
   }
 
   @Test
+  public void declaration_class() {
+    test("class A extends B implements I1, I2 { }");
+  }
+
+  @Test
   public void declaration_enum() {
     test("enum E { C1 , C2 }");
     test("enum E { C1 , C2 ; }");
