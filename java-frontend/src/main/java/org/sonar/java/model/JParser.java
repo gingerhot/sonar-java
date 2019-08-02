@@ -988,8 +988,11 @@ public class JParser {
       convertSimpleName(e.getName())
     );
     if (e.getInitializer() != null) {
-      t.equalToken = firstTokenAfter(e.getName(), TerminalTokens.TokenNameEQUAL);
-      t.initializer = convertExpression(e.getInitializer());
+      t.completeTypeAndInitializer(
+        t.type(),
+        firstTokenAfter(e.getName(), TerminalTokens.TokenNameEQUAL),
+        convertExpression(e.getInitializer())
+      );
     }
     return t;
   }
