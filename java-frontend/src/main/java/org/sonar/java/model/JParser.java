@@ -981,12 +981,9 @@ public class JParser {
   private TypeTree applyExtraDimensions(TypeTree type, List extraDimensions) {
     for (Object o : extraDimensions) {
       Dimension e = (Dimension) o;
-      if (ASSERTIONS && !e.annotations().isEmpty()) {
-        throw new AssertionError();
-      }
       type = new JavaTree.ArrayTypeTreeImpl(
         type,
-        Collections.emptyList(), // FIXME annotations
+        (List) convertAnnotations(e.annotations()),
         firstTokenIn(e, TerminalTokens.TokenNameLBRACKET),
         firstTokenIn(e, TerminalTokens.TokenNameRBRACKET)
       );
@@ -1001,7 +998,7 @@ public class JParser {
     if (e.isVarargs()) {
       type = new JavaTree.ArrayTypeTreeImpl(
         type,
-        Collections.emptyList(), // FIXME annotations,
+        (List) convertAnnotations(e.varargsAnnotations()),
         firstTokenAfter(e.getType(), TerminalTokens.TokenNameELLIPSIS)
       );
     }
@@ -2070,16 +2067,11 @@ public class JParser {
       }
       case ASTNode.ARRAY_TYPE: {
         ArrayType e = (ArrayType) node;
-        JavaTree.ArrayTypeTreeImpl t = new JavaTree.ArrayTypeTreeImpl(
-          convertType(e.getElementType()),
-          Collections.emptyList(),
-          firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameLBRACKET),
-          firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameRBRACKET)
-        );
-        for (int i = 0; i < e.dimensions().size() - 1; i++) {
+        TypeTree t = convertType(e.getElementType());
+        for (int i = 0; i < e.dimensions().size(); i++) {
           t = new JavaTree.ArrayTypeTreeImpl(
             t,
-            Collections.emptyList(), // FIXME annotations
+            (List) convertAnnotations(((Dimension) e.dimensions().get(i)).annotations()),
             firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameLBRACKET),
             firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameRBRACKET)
           );
