@@ -439,7 +439,7 @@ public class JParser {
 
   @Deprecated
   private InternalSyntaxToken createSyntaxToken(int position, String value) {
-    assert ">".equals(value) || ";".equals(value);
+    assert ">".equals(value);
     return new InternalSyntaxToken(
       compilationUnit.getLineNumber(position),
       compilationUnit.getColumnNumber(position),
@@ -1824,7 +1824,7 @@ public class JParser {
             ? new VariableTreeImpl(convertSimpleName(o.getName()))
             : createVariable((SingleVariableDeclaration) o);
           parameters.add(t);
-          if (i < e.parameters().size() -1 ) {
+          if (i < e.parameters().size() - 1) {
             t.setEndToken(
               firstTokenAfter(o, TerminalTokens.TokenNameCOMMA)
             );
