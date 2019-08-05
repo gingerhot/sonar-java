@@ -1667,18 +1667,21 @@ public class JParser {
           );
         }
 
-        return new NewClassTreeImpl(
+        NewClassTreeImpl t = new NewClassTreeImpl(
           arguments,
           classBody
         ).completeWithNewKeyword(
           e.getExpression() == null ? firstTokenIn(e, TerminalTokens.TokenNamenew) : firstTokenAfter(e.getExpression(), TerminalTokens.TokenNamenew)
         ).completeWithIdentifier(
           convertType(e.getType())
-        ).completeWithEnclosingExpression(
-          convertExpression(e.getExpression())
         ).completeWithTypeArguments(
           convertTypeArguments(e.typeArguments())
         );
+        if (e.getExpression() != null) {
+          t.completeWithEnclosingExpression(convertExpression(e.getExpression()));
+          t.completeWithDotToken(firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameDOT));
+        }
+        return t;
       }
       case ASTNode.CONDITIONAL_EXPRESSION: {
         ConditionalExpression e = (ConditionalExpression) node;
