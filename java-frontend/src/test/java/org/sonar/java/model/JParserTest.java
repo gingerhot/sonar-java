@@ -186,17 +186,9 @@ public class JParserTest {
   public void statement_switch() {
     test("class C { void m() { switch (0) { case 0: } } }");
 
-    // Java 12
-    try {
-      test("class C { void m() { switch (0) { case 0, 1: } } }");
-      fail("expected exception");
-    } catch (ComparisonFailure ignore) {
-    }
-    try {
-      test("class C { void m() { switch (0) { case 0, 1 -> { break; } } } }");
-      fail("expected exception");
-    } catch (IndexOutOfBoundsException ignore) {
-    }
+    // Java 12 preview feature
+    test("class C { void m() { switch (0) { case 0, 1: } } }");
+    test("class C { void m() { switch (0) { case 0, 1 -> { break; } } } }");
   }
 
   @Test
@@ -247,6 +239,12 @@ public class JParserTest {
   @Test
   public void expression_lambda() {
     testExpression("lambda( (p1, p2) -> {} )");
+  }
+
+  @Test
+  public void expression_switch() {
+    // Java 12 preview feature
+    testExpression("switch (0) { case 0 -> 0; }");
   }
 
   @Test

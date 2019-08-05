@@ -97,6 +97,7 @@ import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SuperMethodReference;
 import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchExpression;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThisExpression;
@@ -1199,6 +1200,12 @@ public class JParser {
       }
       case ASTNode.BREAK_STATEMENT: {
         BreakStatement e = (BreakStatement) node;
+        if (e.getExpression() != null) {
+          return new ExpressionStatementTreeImpl(
+            convertExpression(e.getExpression()),
+            lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+          );
+        }
         return new BreakStatementTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNamebreak),
           convertSimpleName(e.getLabel()),
@@ -1238,50 +1245,13 @@ public class JParser {
       }
       case ASTNode.SWITCH_STATEMENT: {
         SwitchStatement e = (SwitchStatement) node;
-
-        List<CaseGroupTreeImpl> groups = new ArrayList<>();
-        List<CaseLabelTreeImpl> labels = null;
-        BlockStatementListTreeImpl body = null;
-        for (Object o : e.statements()) {
-          if (o instanceof SwitchCase) {
-            if (labels == null) {
-              labels = new ArrayList<>();
-              body = new BlockStatementListTreeImpl(new ArrayList<>());
-            }
-
-            SwitchCase c = (SwitchCase) o;
-            labels.add(new CaseLabelTreeImpl(
-              firstTokenIn(c, c.isDefault() ? TerminalTokens.TokenNamedefault : TerminalTokens.TokenNamecase),
-              // TODO multiple expressions
-              c.isDefault() ? Collections.emptyList() : Collections.singletonList(convertExpression((Expression) c.expressions().get(0))),
-              // TODO can be "->" TerminalTokens.TokenNameARROW
-              lastTokenIn(c, TerminalTokens.TokenNameCOLON)
-            ));
-          } else {
-            if (labels != null) {
-              groups.add(new CaseGroupTreeImpl(
-                labels,
-                body
-              ));
-            }
-            labels = null;
-            addStatementToList((Statement) o, body);
-          }
-        }
-        if (labels != null) {
-          groups.add(new CaseGroupTreeImpl(
-            labels,
-            body
-          ));
-        }
-
         return new SwitchStatementTreeImpl(new SwitchExpressionTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNameswitch),
           firstTokenBefore(e.getExpression(), TerminalTokens.TokenNameLPAREN),
           convertExpression(e.getExpression()),
           firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameRPAREN),
           firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameLBRACE),
-          groups,
+          convertSwitchStatements(e.statements()),
           lastTokenIn(e, TerminalTokens.TokenNameRBRACE)
         ));
       }
@@ -1448,6 +1418,51 @@ public class JParser {
         );
       }
     }
+  }
+
+  private List<CaseGroupTreeImpl> convertSwitchStatements(List list) {
+    List<CaseGroupTreeImpl> groups = new ArrayList<>();
+    List<CaseLabelTreeImpl> labels = null;
+    BlockStatementListTreeImpl body = null;
+    for (Object o : list) {
+      if (o instanceof SwitchCase) {
+        if (labels == null) {
+          labels = new ArrayList<>();
+          body = new BlockStatementListTreeImpl(new ArrayList<>());
+        }
+
+        SwitchCase c = (SwitchCase) o;
+
+        List<ExpressionTree> expressions = new ArrayList<>();
+        for (Object oo : c.expressions()) {
+          expressions.add(
+            convertExpression((Expression) oo)
+          );
+        }
+
+        labels.add(new CaseLabelTreeImpl(
+          firstTokenIn(c, c.isDefault() ? TerminalTokens.TokenNamedefault : TerminalTokens.TokenNamecase),
+          expressions,
+          lastTokenIn(c, /* TerminalTokens.TokenNameCOLON or TerminalTokens.TokenNameARROW */ -1)
+        ));
+      } else {
+        if (labels != null) {
+          groups.add(new CaseGroupTreeImpl(
+            labels,
+            body
+          ));
+        }
+        labels = null;
+        addStatementToList((Statement) o, body);
+      }
+    }
+    if (labels != null) {
+      groups.add(new CaseGroupTreeImpl(
+        labels,
+        body
+      ));
+    }
+    return groups;
   }
 
   private ExpressionTree convertExpression(@Nullable Expression node) {
@@ -1898,6 +1913,18 @@ public class JParser {
           convertSimpleName(e.getName())
         );
         return t;
+      }
+      case ASTNode.SWITCH_EXPRESSION: {
+        SwitchExpression e = (SwitchExpression) node;
+        return new SwitchExpressionTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameswitch),
+          firstTokenIn(e, TerminalTokens.TokenNameLPAREN),
+          convertExpression(e.getExpression()),
+          firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameRPAREN),
+          firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameLBRACE),
+          convertSwitchStatements(e.statements()),
+          lastTokenIn(e, TerminalTokens.TokenNameRBRACE)
+        );
       }
       case ASTNode.NULL_LITERAL: {
         NullLiteral e = (NullLiteral) node;
