@@ -234,14 +234,6 @@ public class JParser {
    * @deprecated use {@link #parse(String, String, String, List)} instead
    */
   @Deprecated
-  static CompilationUnitTree parse(String source) {
-    return parse("Fake.java", source, Collections.emptyList());
-  }
-
-  /**
-   * @deprecated use {@link #parse(String, String, String, List)} instead
-   */
-  @Deprecated
   public static CompilationUnitTree parse(String unitName, String source, List<File> classpath) {
     return parse("12", unitName, source, classpath);
   }

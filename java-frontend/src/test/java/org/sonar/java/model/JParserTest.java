@@ -65,7 +65,7 @@ public class JParserTest {
 
     try {
       // TODO without check for syntax errors will cause IndexOutOfBoundsException
-      JParser.parse("class C");
+      test("class C");
       fail("exception expected");
     } catch (UnsupportedOperationException e) {
       assertEquals("line 1: Syntax error, insert \"ClassBody\" to complete CompilationUnit", e.getMessage());
@@ -269,13 +269,13 @@ public class JParserTest {
     TreeFormatter formatter = new TreeFormatter();
     formatter.showTokens = true;
 
+    CompilationUnitTree newTree = JParser.parse("12", "File.java", source, Collections.emptyList());
+    String actual = formatter.toString(newTree);
+
     CompilationUnitTree oldTree = (CompilationUnitTree) JavaParser.createParser().parse(source);
     SemanticModel.createFor(oldTree, new SquidClassLoader(Collections.emptyList()));
     String expected = formatter.toString(oldTree);
     System.out.println(expected);
-
-    CompilationUnitTree newTree = JParser.parse(source);
-    String actual = formatter.toString(newTree);
 
     assertEquals(expected, actual);
 
