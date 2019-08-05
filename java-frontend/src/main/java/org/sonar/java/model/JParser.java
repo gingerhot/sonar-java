@@ -476,6 +476,7 @@ public class JParser {
 
     t = tokenManager.get(tokenIndex);
     return new InternalSyntaxToken(
+      // FIXME line and column are incorrect for EOF token
       compilationUnit.getLineNumber(t.originalStart),
       compilationUnit.getColumnNumber(t.originalStart),
       t.tokenType == TerminalTokens.TokenNameEOF ? "" : t.toString(tokenManager.getSource()),
