@@ -1394,7 +1394,7 @@ public class JParser {
 
         return new TryStatementTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNametry),
-          e.resources().isEmpty() ? null : firstTokenBefore(e.getBody(), TerminalTokens.TokenNameLPAREN),
+          e.resources().isEmpty() ? null : firstTokenIn(e, TerminalTokens.TokenNameLPAREN),
           resources,
           e.resources().isEmpty() ? null : firstTokenBefore(e.getBody(), TerminalTokens.TokenNameRPAREN),
           convertBlock(e.getBody()),
