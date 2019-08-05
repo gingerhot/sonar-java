@@ -1136,13 +1136,20 @@ public class JParser {
           ));
         }
 
+        final int firstSemicolonTokenIndex = e.initializers().isEmpty()
+          ? tokenManager.firstIndexIn(e, TerminalTokens.TokenNameSEMICOLON)
+          : tokenManager.firstIndexAfter((ASTNode) e.initializers().get(e.initializers().size() - 1), TerminalTokens.TokenNameSEMICOLON);
+        final int secondSemicolonTokenIndex = e.getExpression() == null
+          ? nextTokenIndex(firstSemicolonTokenIndex, TerminalTokens.TokenNameSEMICOLON)
+          : tokenManager.firstIndexAfter(e.getExpression(), TerminalTokens.TokenNameSEMICOLON);
+
         return new ForStatementTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNamefor),
           firstTokenIn(e, TerminalTokens.TokenNameLPAREN),
           forInitStatement,
-          createSyntaxToken(e.getStartPosition(), ";"), // FIXME
+          createSyntaxToken(firstSemicolonTokenIndex),
           convertExpression(e.getExpression()),
-          createSyntaxToken(e.getStartPosition(), ";"), // FIXME
+          createSyntaxToken(secondSemicolonTokenIndex),
           forUpdateStatement,
           firstTokenBefore(e.getBody(), TerminalTokens.TokenNameRPAREN),
           convertStatement(e.getBody())

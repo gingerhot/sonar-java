@@ -166,6 +166,7 @@ public class JParserTest {
 
   @Test
   public void statement_for() {
+    test("class C { void m() { for ( ; ; ) ; } }");
     test("class C { void m() { for ( int i , j ; ; ) ; } }");
     test("class C { void m() { for ( int i = 0, j = 0 ; ; ) ; } }");
   }
