@@ -54,6 +54,7 @@ import org.eclipse.jdt.core.dom.EmptyStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
+import org.eclipse.jdt.core.dom.ExportsDirective;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
@@ -74,17 +75,23 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
+import org.eclipse.jdt.core.dom.ModuleDirective;
+import org.eclipse.jdt.core.dom.ModuleModifier;
+import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.NormalAnnotation;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
+import org.eclipse.jdt.core.dom.OpensDirective;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.ProvidesDirective;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.QualifiedType;
+import org.eclipse.jdt.core.dom.RequiresDirective;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
@@ -110,6 +117,7 @@ import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.TypeMethodReference;
 import org.eclipse.jdt.core.dom.TypeParameter;
 import org.eclipse.jdt.core.dom.UnionType;
+import org.eclipse.jdt.core.dom.UsesDirective;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -137,10 +145,16 @@ import org.sonar.java.ast.parser.TypeUnionListTreeImpl;
 import org.sonar.java.model.declaration.AnnotationTreeImpl;
 import org.sonar.java.model.declaration.ClassTreeImpl;
 import org.sonar.java.model.declaration.EnumConstantTreeImpl;
+import org.sonar.java.model.declaration.ExportsDirectiveTreeImpl;
 import org.sonar.java.model.declaration.MethodTreeImpl;
 import org.sonar.java.model.declaration.ModifierKeywordTreeImpl;
 import org.sonar.java.model.declaration.ModifiersTreeImpl;
 import org.sonar.java.model.declaration.ModuleDeclarationTreeImpl;
+import org.sonar.java.model.declaration.ModuleNameListTreeImpl;
+import org.sonar.java.model.declaration.OpensDirectiveTreeImpl;
+import org.sonar.java.model.declaration.ProvidesDirectiveTreeImpl;
+import org.sonar.java.model.declaration.RequiresDirectiveTreeImpl;
+import org.sonar.java.model.declaration.UsesDirectiveTreeImpl;
 import org.sonar.java.model.declaration.VariableTreeImpl;
 import org.sonar.java.model.expression.ArrayAccessExpressionTreeImpl;
 import org.sonar.java.model.expression.AssignmentExpressionTreeImpl;
@@ -194,6 +208,8 @@ import org.sonar.plugins.java.api.tree.IdentifierTree;
 import org.sonar.plugins.java.api.tree.ImportClauseTree;
 import org.sonar.plugins.java.api.tree.ModifierTree;
 import org.sonar.plugins.java.api.tree.ModuleDeclarationTree;
+import org.sonar.plugins.java.api.tree.ModuleDirectiveTree;
+import org.sonar.plugins.java.api.tree.ModuleNameTree;
 import org.sonar.plugins.java.api.tree.PackageDeclarationTree;
 import org.sonar.plugins.java.api.tree.StatementTree;
 import org.sonar.plugins.java.api.tree.SyntaxToken;
@@ -285,7 +301,7 @@ public class JParser {
 
     JParser converter = new JParser();
     converter.compilationUnit = astNode;
-    converter.tokenManager = new TokenManager(lex(version, sourceChars), source, new DefaultCodeFormatterOptions(new HashMap<>()));
+    converter.tokenManager = new TokenManager(lex(version, unitName, sourceChars), source, new DefaultCodeFormatterOptions(new HashMap<>()));
 
     CompilationUnitTree tree = converter.convertCompilationUnit(astNode);
     setParents(tree);
@@ -353,7 +369,7 @@ public class JParser {
     return ((JavaTree) node).getChildren().iterator();
   }
 
-  private static List<Token> lex(String version, char[] sourceChars) {
+  private static List<Token> lex(String version, String unitName, char[] sourceChars) {
     List<Token> tokens = new ArrayList<>();
     Scanner scanner = new Scanner(
       true,
@@ -364,6 +380,7 @@ public class JParser {
       null,
       false
     );
+    scanner.fakeInModule = "module-info.java".equals(unitName);
     scanner.setSource(sourceChars);
     while (true) {
       try {
@@ -557,15 +574,131 @@ public class JParser {
     if (e == null) {
       return null;
     }
+    List<ModuleDirectiveTree> moduleDirectives = new ArrayList<>();
+    for (Object o : e.moduleStatements()) {
+      moduleDirectives.add(
+        convertModuleDirective((ModuleDirective) o)
+      );
+    }
     return new ModuleDeclarationTreeImpl(
       convertAnnotations(e.annotations()),
-      null, // TODO open keyword
-      firstTokenBefore(e.getName(), TerminalTokens.TokenNameIdentifier), // TODO Scanner.fakeInModule for TokenNamemodule ?
-      new ModuleNameTreeImpl(Collections.emptyList(), Collections.emptyList()), // TODO convertExpression(e.getName());
+      e.isOpen() ? firstTokenIn(e, TerminalTokens.TokenNameopen) : null,
+      firstTokenBefore(e.getName(), TerminalTokens.TokenNamemodule),
+      convertModuleName(e.getName()),
       firstTokenAfter(e.getName(), TerminalTokens.TokenNameLBRACE),
-      Collections.emptyList(), // TODO e.moduleStatements()
+      moduleDirectives,
       lastTokenIn(e, TerminalTokens.TokenNameRBRACE)
     );
+  }
+
+  private ModuleNameTreeImpl convertModuleName(Name node) {
+    switch (node.getNodeType()) {
+      default:
+        throw new IllegalStateException(ASTNode.nodeClassForType(node.getNodeType()).toString());
+      case ASTNode.QUALIFIED_NAME: {
+        QualifiedName e = (QualifiedName) node;
+        ModuleNameTreeImpl t = convertModuleName(e.getQualifier());
+        t.add(
+          new IdentifierTreeImpl(firstTokenIn(e.getName(), TerminalTokens.TokenNameIdentifier))
+        );
+        return t;
+      }
+      case ASTNode.SIMPLE_NAME: {
+        SimpleName e = (SimpleName) node;
+        ModuleNameTreeImpl t = new ModuleNameTreeImpl(new ArrayList<>(), Collections.emptyList());
+        t.add(
+          new IdentifierTreeImpl(firstTokenIn(e, TerminalTokens.TokenNameIdentifier))
+        );
+        return t;
+      }
+    }
+  }
+
+  private ModuleNameListTreeImpl convertModuleNames(List list) {
+    ModuleNameListTreeImpl t = new ModuleNameListTreeImpl(new ArrayList<>(), new ArrayList<>());
+    for (int i = 0; i < list.size(); i++) {
+      Name o = (Name) list.get(i);
+      if (i > 0) {
+        t.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+      }
+      t.add(convertModuleName(o));
+    }
+    return t;
+  }
+
+  private ModuleDirectiveTree convertModuleDirective(ModuleDirective node) {
+    switch (node.getNodeType()) {
+      default:
+        throw new IllegalStateException(ASTNode.nodeClassForType(node.getNodeType()).toString());
+      case ASTNode.REQUIRES_DIRECTIVE: {
+        RequiresDirective e = (RequiresDirective) node;
+        ModifiersTreeImpl modifiers = new ModifiersTreeImpl(new ArrayList<>());
+        for (Object o : e.modifiers()) {
+          switch (((ModuleModifier) o).getKeyword().toString()) {
+            default:
+              throw new IllegalStateException();
+            case "static":
+              modifiers.add(new ModifierKeywordTreeImpl(org.sonar.plugins.java.api.tree.Modifier.STATIC, firstTokenIn((ASTNode) o, /* any */ -1)));
+              break;
+            case "transitive":
+              modifiers.add(new ModifierKeywordTreeImpl(org.sonar.plugins.java.api.tree.Modifier.TRANSITIVE, firstTokenIn((ASTNode) o, /* any */ -1)));
+              break;
+          }
+        }
+        return new RequiresDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNamerequires),
+          modifiers,
+          convertModuleName(e.getName()),
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+      case ASTNode.EXPORTS_DIRECTIVE: {
+        ExportsDirective e = (ExportsDirective) node;
+        return new ExportsDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameexports),
+          convertExpression(e.getName()),
+          e.modules().isEmpty() ? null : firstTokenAfter(e.getName(), TerminalTokens.TokenNameto),
+          convertModuleNames(e.modules()),
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+      case ASTNode.OPENS_DIRECTIVE: {
+        OpensDirective e = (OpensDirective) node;
+        return new OpensDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameopens),
+          convertExpression(e.getName()),
+          e.modules().isEmpty() ? null : firstTokenAfter(e.getName(), TerminalTokens.TokenNameto),
+          convertModuleNames(e.modules()),
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+      case ASTNode.USES_DIRECTIVE: {
+        UsesDirective e = (UsesDirective) node;
+        return new UsesDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameuses),
+          (TypeTree) convertExpression(e.getName()),
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+      case ASTNode.PROVIDES_DIRECTIVE: {
+        ProvidesDirective e = (ProvidesDirective) node;
+        QualifiedIdentifierListTreeImpl typeNames = new QualifiedIdentifierListTreeImpl(new ArrayList<>(), new ArrayList<>());
+        for (int i = 0; i < e.implementations().size(); i++) {
+          Name o = (Name) e.implementations().get(i);
+          if (i > 0) {
+            typeNames.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+          }
+          typeNames.add((TypeTree) convertExpression(o));
+        }
+        return new ProvidesDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameprovides),
+          (TypeTree) convertExpression(e.getName()),
+          firstTokenAfter(e.getName(), TerminalTokens.TokenNamewith),
+          typeNames,
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+    }
   }
 
   private ClassTreeImpl convertTypeDeclaration(AbstractTypeDeclaration e) {

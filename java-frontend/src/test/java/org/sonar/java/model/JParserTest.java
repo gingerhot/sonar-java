@@ -19,7 +19,6 @@
  */
 package org.sonar.java.model;
 
-import org.junit.ComparisonFailure;
 import org.junit.Test;
 import org.sonar.java.ast.parser.JavaParser;
 import org.sonar.java.bytecode.loader.SquidClassLoader;
@@ -257,6 +256,16 @@ public class JParserTest {
     testExpression("new a. @Annotation d()");
   }
 
+  @Test
+  public void module() {
+    testModule("module a { }");
+    testModule("module a { requires static transitive b ; }");
+    testModule("module a { exports b to c , d ; }");
+    testModule("module a { opens b to c , d ; }");
+    testModule("module a { uses b ; }");
+    testModule("module a { provides b with c , d ; }");
+  }
+
   private void testStatement(String statement) {
     test("class C { void m() { " + statement + " } }");
   }
@@ -266,10 +275,18 @@ public class JParserTest {
   }
 
   private static CompilationUnitTree test(String source) {
+    return test("File.java", source);
+  }
+
+  private static void testModule(String source) {
+    test("module-info.java", source);
+  }
+
+  private static CompilationUnitTree test(String unitName, String source) {
     TreeFormatter formatter = new TreeFormatter();
     formatter.showTokens = true;
 
-    CompilationUnitTree newTree = JParser.parse("12", "File.java", source, Collections.emptyList());
+    CompilationUnitTree newTree = JParser.parse("12", unitName, source, Collections.emptyList());
     String actual = formatter.toString(newTree);
 
     CompilationUnitTree oldTree = (CompilationUnitTree) JavaParser.createParser().parse(source);
