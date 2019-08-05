@@ -1584,7 +1584,8 @@ public class JParser {
         for (int i = 0; i < e.expressions().size(); i++) {
           Expression o = (Expression) e.expressions().get(i);
           initializers.add(convertExpression(o));
-          if (i < e.expressions().size() - 1) {
+          final int commaTokenIndex = firstTokenIndexAfter(o);
+          if (tokenManager.get(commaTokenIndex).tokenType == TerminalTokens.TokenNameCOMMA) {
             initializers.separators().add(firstTokenAfter(o, TerminalTokens.TokenNameCOMMA));
           }
         }
