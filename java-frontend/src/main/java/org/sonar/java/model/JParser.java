@@ -1676,6 +1676,8 @@ public class JParser {
           convertType(e.getType())
         ).completeWithEnclosingExpression(
           convertExpression(e.getExpression())
+        ).completeWithTypeArguments(
+          convertTypeArguments(e.typeArguments())
         );
       }
       case ASTNode.CONDITIONAL_EXPRESSION: {
