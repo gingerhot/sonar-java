@@ -216,11 +216,6 @@ import java.util.Map;
 public class JParser {
 
   public static boolean ENABLED;
-  /**
-   * @deprecated should be removed
-   */
-  @Deprecated
-  private static boolean ASSERTIONS = Boolean.getBoolean("sonar.java.internal.ecj.assertions");
   private static boolean COMPARE_COMMENTS = Boolean.getBoolean("sonar.java.internal.ecj.compare_comments");
   private static boolean COMPARE_TREES = Boolean.getBoolean("sonar.java.internal.ecj.compare_trees");
 
@@ -228,7 +223,6 @@ public class JParser {
     ENABLED = Boolean.parseBoolean(System.getProperty("sonar.java.internal.ecj", "true"));
     if (ENABLED) {
       System.err.println("Using ECJ parser"
-        + (ASSERTIONS ? " (assertions)" : "")
         + (COMPARE_COMMENTS ? " (compare comments)" : "")
         + (COMPARE_TREES ? " (compare trees)" : "")
       );
