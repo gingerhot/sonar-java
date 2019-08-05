@@ -649,21 +649,9 @@ public class JParser {
 
     if (kind == Tree.Kind.CLASS || kind == Tree.Kind.INTERFACE) {
       TypeDeclaration ee = (TypeDeclaration) e;
-      if (!ee.typeParameters().isEmpty()) {
-        ASTNode last = (ASTNode) ee.typeParameters().get(ee.typeParameters().size() - 1);
-        TypeParameterListTreeImpl typeParameters = new TypeParameterListTreeImpl(
-          firstTokenBefore((ASTNode) ee.typeParameters().get(0), TerminalTokens.TokenNameLESS),
-          new ArrayList<>(), new ArrayList<>(),
-          // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
-          createSyntaxToken(last.getStartPosition() + last.getLength() - 1, ">")
-        );
-        for (Object o : ee.typeParameters()) {
-          typeParameters.add(
-            convertTypeParameter((TypeParameter) o)
-          );
-        }
-        t.completeTypeParameters(typeParameters);
-      }
+      t.completeTypeParameters(
+        convertTypeParameters(ee.typeParameters())
+      );
     }
 
     switch (kind) {
@@ -813,22 +801,6 @@ public class JParser {
       case ASTNode.METHOD_DECLARATION: {
         MethodDeclaration e = (MethodDeclaration) node;
 
-        TypeParameterListTreeImpl typeParameters = new TypeParameterListTreeImpl();
-        if (!e.typeParameters().isEmpty()) {
-          ASTNode last = (ASTNode) e.typeParameters().get(e.typeParameters().size() - 1);
-          typeParameters = new TypeParameterListTreeImpl(
-            firstTokenBefore((ASTNode) e.typeParameters().get(0), TerminalTokens.TokenNameLESS),
-            new ArrayList<>(), new ArrayList<>(),
-            // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
-            createSyntaxToken(last.getStartPosition() + last.getLength() - 1, ">")
-          );
-          for (Object o : e.typeParameters()) {
-            typeParameters.add(
-              convertTypeParameter((TypeParameter) o)
-            );
-          }
-        }
-
         FormalParametersListTreeImpl parameters = new FormalParametersListTreeImpl(
           firstTokenAfter(e.getName(), TerminalTokens.TokenNameLPAREN),
           firstTokenAfter(
@@ -847,6 +819,7 @@ public class JParser {
         QualifiedIdentifierListTreeImpl thrownExceptionTypes = new QualifiedIdentifierListTreeImpl(new ArrayList<>(), new ArrayList<>());
         for (Object o : e.thrownExceptionTypes()) {
           thrownExceptionTypes.add(convertType((Type) o));
+          // FIXME separators
         }
 
         members.add(new MethodTreeImpl(
@@ -860,7 +833,7 @@ public class JParser {
         ).completeWithModifiers(
           convertModifiers(e.modifiers())
         ).completeWithTypeParameters(
-          typeParameters
+          convertTypeParameters(e.typeParameters())
         ));
         lastTokenIndex = tokenManager.lastIndexIn(node, e.getBody() == null ? TerminalTokens.TokenNameSEMICOLON : TerminalTokens.TokenNameRBRACE);
         break;
@@ -944,6 +917,27 @@ public class JParser {
       }
     }
     return typeArguments;
+  }
+
+  private TypeParameterListTreeImpl convertTypeParameters(List list) {
+    if (list.isEmpty()) {
+      return new TypeParameterListTreeImpl();
+    }
+    ASTNode last = (ASTNode) list.get(list.size() - 1);
+    TypeParameterListTreeImpl t = new TypeParameterListTreeImpl(
+      firstTokenBefore((ASTNode) list.get(0), TerminalTokens.TokenNameLESS),
+      new ArrayList<>(), new ArrayList<>(),
+      // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
+      createSyntaxToken(last.getStartPosition() + last.getLength() - 1, ">")
+    );
+    for (int i = 0; i < list.size(); i++) {
+      TypeParameter o = (TypeParameter) list.get(i);
+      if (i > 0) {
+        t.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+      }
+      t.add(convertTypeParameter(o));
+    }
+    return t;
   }
 
   private TypeParameterTree convertTypeParameter(TypeParameter e) {
@@ -1112,6 +1106,7 @@ public class JParser {
         );
       }
       case ASTNode.FOR_STATEMENT: {
+        // FIXME separators
         ForStatement e = (ForStatement) node;
 
         StatementExpressionListTreeImpl forInitStatement = new StatementExpressionListTreeImpl(new ArrayList<>(), new ArrayList<>());
@@ -1806,6 +1801,7 @@ public class JParser {
         LambdaExpression e = (LambdaExpression) node;
         List<VariableTree> parameters = new ArrayList<>();
         for (Object o : e.parameters()) {
+          // FIXME separators
           VariableDeclaration e2 = (VariableDeclaration) o;
           if (e2.getNodeType() == ASTNode.VARIABLE_DECLARATION_FRAGMENT) {
             parameters.add(new VariableTreeImpl(
