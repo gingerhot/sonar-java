@@ -397,6 +397,13 @@ public class JParser {
 
   private TokenManager tokenManager;
 
+  private int nextTokenIndex(int tokenIndex, int tokenType) {
+    while (tokenManager.get(tokenIndex).tokenType != tokenType) {
+      tokenIndex += 1;
+    }
+    return tokenIndex;
+  }
+
   /**
    * @param tokenType {@link TerminalTokens}
    */
@@ -1734,13 +1741,14 @@ public class JParser {
             convertSimpleName(e.getName())
           );
         } else {
+          final int firstDotTokenIndex = tokenManager.firstIndexAfter(e.getQualifier(), TerminalTokens.TokenNameDOT);
           outermostSelect = new MemberSelectExpressionTreeImpl(
             new MemberSelectExpressionTreeImpl(
               convertExpression(e.getQualifier()),
-              firstTokenAfter(e.getQualifier(), TerminalTokens.TokenNameDOT),
+              createSyntaxToken(firstDotTokenIndex),
               new IdentifierTreeImpl(firstTokenAfter(e.getQualifier(), TerminalTokens.TokenNamesuper))
             ),
-            null, // FIXME second dot token after qualifier
+            createSyntaxToken(nextTokenIndex(firstDotTokenIndex, TerminalTokens.TokenNameDOT)),
             convertSimpleName(e.getName())
           );
         }
