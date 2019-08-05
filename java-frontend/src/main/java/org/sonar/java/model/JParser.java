@@ -1007,11 +1007,13 @@ public class JParser {
   }
 
   private void addVariableToList(VariableDeclarationExpression e2, List list) {
+    ModifiersTreeImpl modifiers = convertModifiers(e2.modifiers());
     TypeTree type = convertType(e2.getType());
 
     for (int i = 0; i < e2.fragments().size(); i++) {
       VariableDeclarationFragment fragment = (VariableDeclarationFragment) e2.fragments().get(i);
       VariableTreeImpl t = new VariableTreeImpl(convertSimpleName(fragment.getName()));
+      t.completeModifiers(modifiers);
       if (fragment.getInitializer() == null) {
         t.completeType(type);
       } else {
