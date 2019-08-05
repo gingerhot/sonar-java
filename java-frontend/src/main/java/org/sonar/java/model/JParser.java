@@ -817,9 +817,12 @@ public class JParser {
         }
 
         QualifiedIdentifierListTreeImpl thrownExceptionTypes = new QualifiedIdentifierListTreeImpl(new ArrayList<>(), new ArrayList<>());
-        for (Object o : e.thrownExceptionTypes()) {
-          thrownExceptionTypes.add(convertType((Type) o));
-          // FIXME separators
+        for (int i = 0; i < e.thrownExceptionTypes().size(); i++) {
+          Type o = (Type) e.thrownExceptionTypes().get(i);
+          if (i > 0) {
+            thrownExceptionTypes.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+          }
+          thrownExceptionTypes.add(convertType(o));
         }
 
         members.add(new MethodTreeImpl(
