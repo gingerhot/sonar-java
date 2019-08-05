@@ -237,6 +237,11 @@ public class JParserTest {
   }
 
   @Test
+  public void expression_lambda() {
+    testExpression("lambda( (p1, p2) -> {} )");
+  }
+
+  @Test
   public void type_qualified() {
     testExpression("new a<b>. @Annotation c()");
   }

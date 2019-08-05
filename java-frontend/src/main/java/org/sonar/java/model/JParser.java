@@ -1803,16 +1803,15 @@ public class JParser {
       case ASTNode.LAMBDA_EXPRESSION: {
         LambdaExpression e = (LambdaExpression) node;
         List<VariableTree> parameters = new ArrayList<>();
-        for (Object o : e.parameters()) {
-          // FIXME separators
-          VariableDeclaration e2 = (VariableDeclaration) o;
-          if (e2.getNodeType() == ASTNode.VARIABLE_DECLARATION_FRAGMENT) {
-            parameters.add(new VariableTreeImpl(
-              convertSimpleName(e2.getName())
-            ));
-          } else {
-            parameters.add(
-              createVariable((SingleVariableDeclaration) o)
+        for (int i = 0; i < e.parameters().size(); i++) {
+          VariableDeclaration o = (VariableDeclaration) e.parameters().get(i);
+          VariableTreeImpl t = o.getNodeType() == ASTNode.VARIABLE_DECLARATION_FRAGMENT
+            ? new VariableTreeImpl(convertSimpleName(o.getName()))
+            : createVariable((SingleVariableDeclaration) o);
+          parameters.add(t);
+          if (i < e.parameters().size() -1 ) {
+            t.setEndToken(
+              firstTokenAfter(o, TerminalTokens.TokenNameCOMMA)
             );
           }
         }
