@@ -564,11 +564,11 @@ public class JParser {
       return null;
     }
     return new ModuleDeclarationTreeImpl(
-      Collections.emptyList(),
-      null,
-      firstTokenIn(e, TerminalTokens.TokenNameIdentifier), // TODO Scanner.fakeInModule for TokenNamemodule ?
+      convertAnnotations(e.annotations()),
+      null, // TODO open keyword
+      firstTokenBefore(e.getName(), TerminalTokens.TokenNameIdentifier), // TODO Scanner.fakeInModule for TokenNamemodule ?
       new ModuleNameTreeImpl(Collections.emptyList(), Collections.emptyList()), // TODO convertExpression(e.getName());
-      firstTokenIn(e, TerminalTokens.TokenNameLBRACE),
+      firstTokenAfter(e.getName(), TerminalTokens.TokenNameLBRACE),
       Collections.emptyList(), // TODO e.moduleStatements()
       lastTokenIn(e, TerminalTokens.TokenNameRBRACE)
     );
