@@ -698,12 +698,21 @@ public class JParser {
   }
 
   private EnumConstantTreeImpl processEnumConstantDeclaration(EnumConstantDeclaration e) {
-    ArgumentListTreeImpl arguments = convertArguments(
-      null, // FIXME tokens
-      e.arguments(),
-      null
-    );
+    int openParTokenIndex = tokenManager.firstIndexAfter(e.getName(), /* any */ -1);
+    while (isWhitespaceOrComment(tokenManager.get(openParTokenIndex))) {
+      openParTokenIndex++;
+    }
+    final InternalSyntaxToken openParToken;
+    final InternalSyntaxToken closeParToken;
+    if (tokenManager.get(openParTokenIndex).tokenType == TerminalTokens.TokenNameLPAREN) {
+      openParToken = createSyntaxToken(openParTokenIndex);
+      closeParToken = e.arguments().isEmpty() ? firstTokenAfter(e.getName(), TerminalTokens.TokenNameRPAREN) : firstTokenAfter((ASTNode) e.arguments().get(e.arguments().size() - 1), TerminalTokens.TokenNameRPAREN);
+    } else {
+      openParToken = null;
+      closeParToken = null;
+    }
 
+    final ArgumentListTreeImpl arguments = convertArguments(openParToken, e.arguments(), closeParToken);
     ClassTreeImpl classBody = null;
     if (e.getAnonymousClassDeclaration() != null) {
       List<Tree> members = new ArrayList<>();

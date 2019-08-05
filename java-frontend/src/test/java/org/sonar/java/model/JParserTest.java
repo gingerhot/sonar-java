@@ -150,6 +150,9 @@ public class JParserTest {
   public void declaration_enum() {
     test("enum E { C1 , C2 }");
     test("enum E { C1 , C2 ; }");
+
+    test("enum E { C() }");
+    test("enum E { C { } }");
   }
 
   @Test
