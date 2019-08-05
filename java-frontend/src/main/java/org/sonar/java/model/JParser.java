@@ -1112,16 +1112,19 @@ public class JParser {
         ForStatement e = (ForStatement) node;
 
         StatementExpressionListTreeImpl forInitStatement = new StatementExpressionListTreeImpl(new ArrayList<>(), new ArrayList<>());
-        for (Object o : e.initializers()) {
-          // FIXME separators
-          if (ASTNode.VARIABLE_DECLARATION_EXPRESSION == ((Expression) o).getNodeType()) {
+        for (int i = 0; i < e.initializers().size(); i++) {
+          Expression o = (Expression) e.initializers().get(i);
+          if (i > 0) {
+            forInitStatement.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+          }
+          if (ASTNode.VARIABLE_DECLARATION_EXPRESSION == o.getNodeType()) {
             addVariableToList(
               (VariableDeclarationExpression) o,
               forInitStatement
             );
           } else {
             forInitStatement.add(new ExpressionStatementTreeImpl(
-              convertExpression((Expression) o),
+              convertExpression(o),
               null
             ));
           }
