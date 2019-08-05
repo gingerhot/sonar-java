@@ -1109,11 +1109,11 @@ public class JParser {
         );
       }
       case ASTNode.FOR_STATEMENT: {
-        // FIXME separators
         ForStatement e = (ForStatement) node;
 
         StatementExpressionListTreeImpl forInitStatement = new StatementExpressionListTreeImpl(new ArrayList<>(), new ArrayList<>());
         for (Object o : e.initializers()) {
+          // FIXME separators
           if (ASTNode.VARIABLE_DECLARATION_EXPRESSION == ((Expression) o).getNodeType()) {
             addVariableToList(
               (VariableDeclarationExpression) o,
@@ -1128,9 +1128,13 @@ public class JParser {
         }
 
         StatementExpressionListTreeImpl forUpdateStatement = new StatementExpressionListTreeImpl(new ArrayList<>(), new ArrayList<>());
-        for (Object o : e.updaters()) {
+        for (int i = 0; i < e.updaters().size(); i++) {
+          Expression o = (Expression) e.updaters().get(i);
+          if (i > 0) {
+            forUpdateStatement.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+          }
           forUpdateStatement.add(new ExpressionStatementTreeImpl(
-            convertExpression((Expression) o),
+            convertExpression(o),
             null
           ));
         }

@@ -169,9 +169,8 @@ public class JParserTest {
 
   @Test
   public void statement_for() {
-    test("class C { void m() { for ( ; ; ) ; } }");
-    test("class C { void m() { for ( int i , j ; ; ) ; } }");
-    test("class C { void m() { for ( int i = 0, j = 0 ; ; ) ; } }");
+    testStatement("for ( ; ; ) ;");
+    testStatement("for (int i = 0, j = 0 ; ; i++, j++) ;");
   }
 
   @Test
@@ -249,6 +248,10 @@ public class JParserTest {
   @Test
   public void type_name_qualified() {
     testExpression("new a. @Annotation d()");
+  }
+
+  private void testStatement(String statement) {
+    test("class C { void m() { " + statement + " } }");
   }
 
   private void testExpression(String expression) {
