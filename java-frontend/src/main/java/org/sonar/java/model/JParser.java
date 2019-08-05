@@ -397,6 +397,17 @@ public class JParser {
 
   private TokenManager tokenManager;
 
+  private int firstTokenIndexAfter(ASTNode e) {
+    int index = tokenManager.firstIndexAfter(e, /* any */ -1);
+    while (isWhitespaceOrComment(tokenManager.get(index))) {
+      index++;
+    }
+    return index;
+  }
+
+  /**
+   * @param tokenType {@link TerminalTokens}
+   */
   private int nextTokenIndex(int tokenIndex, int tokenType) {
     while (tokenManager.get(tokenIndex).tokenType != tokenType) {
       tokenIndex += 1;
@@ -698,10 +709,7 @@ public class JParser {
   }
 
   private EnumConstantTreeImpl processEnumConstantDeclaration(EnumConstantDeclaration e) {
-    int openParTokenIndex = tokenManager.firstIndexAfter(e.getName(), /* any */ -1);
-    while (isWhitespaceOrComment(tokenManager.get(openParTokenIndex))) {
-      openParTokenIndex++;
-    }
+    final int openParTokenIndex = firstTokenIndexAfter(e.getName());
     final InternalSyntaxToken openParToken;
     final InternalSyntaxToken closeParToken;
     if (tokenManager.get(openParTokenIndex).tokenType == TerminalTokens.TokenNameLPAREN) {
@@ -727,10 +735,7 @@ public class JParser {
       );
     }
 
-    int separatorTokenIndex = tokenManager.firstIndexAfter(e, /* any */ -1);
-    while (isWhitespaceOrComment(tokenManager.get(separatorTokenIndex))) {
-      separatorTokenIndex++;
-    }
+    final int separatorTokenIndex = firstTokenIndexAfter(e);
     final InternalSyntaxToken separatorToken;
     switch (tokenManager.get(separatorTokenIndex).tokenType) {
       default:
