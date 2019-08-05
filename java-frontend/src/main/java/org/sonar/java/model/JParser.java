@@ -953,14 +953,10 @@ public class JParser {
   }
 
   private TypeParameterTree convertTypeParameter(TypeParameter e) {
-    // FIXME e.modifiers()
-    if (ASSERTIONS && !e.modifiers().isEmpty()) {
-      throw new AssertionError();
-    }
+    IdentifierTreeImpl t = convertSimpleName(e.getName());
+    t.complete(convertAnnotations(e.modifiers())); // TODO why modifiers in ECJ?
     if (e.typeBounds().isEmpty()) {
-      return new TypeParameterTreeImpl(
-        convertSimpleName(e.getName())
-      );
+      return new TypeParameterTreeImpl(t);
     } else {
       BoundListTreeImpl bounds = new BoundListTreeImpl(new ArrayList<>(), new ArrayList<>());
       for (Object o : e.typeBounds()) {
@@ -970,7 +966,7 @@ public class JParser {
         firstTokenAfter(e.getName(), TerminalTokens.TokenNameextends),
         bounds
       ).complete(
-        convertSimpleName(e.getName())
+        t
       );
     }
   }
