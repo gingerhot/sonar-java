@@ -2122,23 +2122,27 @@ public class JParser {
       }
       case ASTNode.WILDCARD_TYPE: {
         WildcardType e = (WildcardType) node;
-        // FIXME e.annotations()
-        if (ASSERTIONS && !e.annotations().isEmpty()) {
-          throw new AssertionError();
-        }
+        final InternalSyntaxToken questionToken = e.annotations().isEmpty()
+          ? firstTokenIn(e, TerminalTokens.TokenNameQUESTION)
+          : firstTokenAfter((ASTNode) e.annotations().get(e.annotations().size() - 1), TerminalTokens.TokenNameQUESTION);
+        JavaTree.WildcardTreeImpl t;
         if (e.getBound() == null) {
-          return new JavaTree.WildcardTreeImpl(
-            /* TODO first only in absence of annotations */ firstTokenIn(e, TerminalTokens.TokenNameQUESTION)
+          t = new JavaTree.WildcardTreeImpl(
+            questionToken
           );
         } else {
-          return new JavaTree.WildcardTreeImpl(
+          t = new JavaTree.WildcardTreeImpl(
             e.isUpperBound() ? Tree.Kind.EXTENDS_WILDCARD : Tree.Kind.SUPER_WILDCARD,
             e.isUpperBound() ? firstTokenBefore(e.getBound(), TerminalTokens.TokenNameextends) : firstTokenBefore(e.getBound(), TerminalTokens.TokenNamesuper),
             convertType(e.getBound())
           ).complete(
-            /* TODO first only in absence of annotations */ firstTokenIn(e, TerminalTokens.TokenNameQUESTION)
+            questionToken
           );
         }
+        t.complete(
+          convertAnnotations(e.annotations())
+        );
+        return t;
       }
     }
   }
