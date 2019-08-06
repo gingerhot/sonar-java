@@ -244,6 +244,7 @@ public class JParserTest {
   public void expression_switch() {
     // Java 12 preview feature
     testExpression("switch (0) { case 0 -> 0; }");
+    testExpression("switch (0) { case 0: break 0; }");
   }
 
   @Test

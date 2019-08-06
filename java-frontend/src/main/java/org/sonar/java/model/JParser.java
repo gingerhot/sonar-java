@@ -1325,7 +1325,7 @@ public class JParser {
       }
       case ASTNode.BREAK_STATEMENT: {
         BreakStatement e = (BreakStatement) node;
-        if (e.getExpression() != null) {
+        if (e.isImplicit()) {
           return new ExpressionStatementTreeImpl(
             convertExpression(e.getExpression()),
             lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
@@ -1333,7 +1333,7 @@ public class JParser {
         }
         return new BreakStatementTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNamebreak),
-          convertSimpleName(e.getLabel()),
+          e.getExpression() == null ? convertSimpleName(e.getLabel()) : convertExpression(e.getExpression()),
           lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
         );
       }
