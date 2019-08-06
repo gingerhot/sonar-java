@@ -19,6 +19,7 @@
  */
 package org.sonar.java.model;
 
+import org.junit.ComparisonFailure;
 import org.junit.Test;
 import org.sonar.java.ast.parser.JavaParser;
 import org.sonar.java.bytecode.loader.SquidClassLoader;
@@ -261,6 +262,11 @@ public class JParserTest {
   public void module() {
     testModule("module a { }");
     testModule("module a { requires static transitive b ; }");
+    try { // bug in ECJ
+      testModule("module a { requires transitive ; }");
+      fail("exception expected");
+    } catch (ComparisonFailure expected) {
+    }
     testModule("module a { exports b to c , d ; }");
     testModule("module a { opens b to c , d ; }");
     testModule("module a { uses b ; }");
