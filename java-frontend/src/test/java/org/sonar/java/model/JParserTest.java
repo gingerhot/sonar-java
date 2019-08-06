@@ -61,6 +61,16 @@ public class JParserTest {
     }
   }
 
+  @Test
+  public void exception_in_lexer() {
+    try { // FIXME should also lead to RecognitionException
+      testExpression("''");
+      fail("exception expected");
+    } catch (RuntimeException e) {
+      assertEquals("org.eclipse.jdt.core.compiler.InvalidInputException: Invalid_Character_Constant", e.getMessage());
+    }
+  }
+
   @org.junit.Ignore
   @Test
   public void invalid() {
