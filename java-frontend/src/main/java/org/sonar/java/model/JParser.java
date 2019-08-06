@@ -19,6 +19,7 @@
  */
 package org.sonar.java.model;
 
+import com.sonar.sslr.api.RecognitionException;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
@@ -256,11 +257,13 @@ public class JParser {
 
   /**
    * @param unitName see {@link ASTParser#setUnitName(String)}
+   * @throws RecognitionException in case of syntax error
    */
   public static CompilationUnitTree parse(String version, String unitName, String source, List<File> classpath) {
     ASTParser astParser = ASTParser.newParser(AST.JLS12);
     Map<String, String> options = new HashMap<>();
     options.put(JavaCore.COMPILER_SOURCE, version);
+    options.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, "enabled");
     astParser.setCompilerOptions(options);
 
     astParser.setEnvironment(
@@ -294,9 +297,13 @@ public class JParser {
       System.err.println(message);
 
       // TODO more for problem.isError()
-      if (problem.getMessage().contains("Syntax error")) {
-        throw new UnsupportedOperationException(message);
+      if (!problem.getMessage().contains("Syntax error")) {
+        continue;
       }
+
+      final int line = problem.getSourceLineNumber();
+      final int column = astNode.getColumnNumber(problem.getSourceStart());
+      throw new RecognitionException(line, "Parse error at line " + line + " column " + column + ": " + problem.getMessage());
     }
 
     JParser converter = new JParser();

@@ -68,7 +68,6 @@ public class SyntaxHighlighterVisitorTest {
     syntaxHighlighterVisitor = new SyntaxHighlighterVisitor(sonarComponents);
   }
 
-  @org.junit.Ignore
   @Test
   public void parse_error() throws Exception {
     SensorContextTester spy = spy(context);
@@ -105,7 +104,7 @@ public class SyntaxHighlighterVisitorTest {
   /**
    * Java 9 modules introduces restricted keywords only used in their context
    */
-  @org.junit.Ignore
+  @org.junit.Ignore("file should have name module-info.java")
   @Test
   public void test_restricted_keywords_within_module() throws Exception {
     this.eol = "\n";

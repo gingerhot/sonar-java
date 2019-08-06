@@ -19,6 +19,7 @@
  */
 package org.sonar.java.model;
 
+import com.sonar.sslr.api.RecognitionException;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
 import org.sonar.java.ast.parser.JavaParser;
@@ -43,6 +44,23 @@ import static org.junit.Assert.fail;
  */
 public class JParserTest {
 
+  @Test
+  public void should_throw_RecognitionException_in_case_of_syntax_error() {
+    try { // Note that without check for syntax errors will cause IndexOutOfBoundsException
+      test("class C");
+      fail("exception expected");
+    } catch (RecognitionException e) {
+      assertEquals(1, e.getLine());
+      assertEquals("Parse error at line 1 column 6: Syntax error, insert \"ClassBody\" to complete CompilationUnit", e.getMessage());
+    }
+    try { // Note that syntax tree will be correct even in presence of this syntax error
+      test("import a; ; import b;");
+      fail("exception expected");
+    } catch (RecognitionException e) {
+      assertEquals("Parse error at line 1 column 10: Syntax error on token \";\", delete this token", e.getMessage());
+    }
+  }
+
   @org.junit.Ignore
   @Test
   public void invalid() {
@@ -61,14 +79,6 @@ public class JParserTest {
       test("interface Foo { public foo(); // comment\n }");
       fail("exception expected");
     } catch (IndexOutOfBoundsException ignore) {
-    }
-
-    try {
-      // TODO without check for syntax errors will cause IndexOutOfBoundsException
-      test("class C");
-      fail("exception expected");
-    } catch (UnsupportedOperationException e) {
-      assertEquals("line 1: Syntax error, insert \"ClassBody\" to complete CompilationUnit", e.getMessage());
     }
   }
 
@@ -124,14 +134,6 @@ public class JParserTest {
   public void empty_declarations() {
     // after each import declaration
     test("import i; ;");
-
-    try {
-      test("import a; ; import b;");
-      fail("exception expected");
-    } catch (UnsupportedOperationException e) {
-      // TODO syntax tree is actually correct even in presence of syntax error
-      assertEquals("line 1: Syntax error on token \";\", delete this token", e.getMessage());
-    }
 
     // before first and after each body declaration
     test("class C { ; void m(); ; }");
