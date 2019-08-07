@@ -28,7 +28,10 @@ import org.sonar.java.resolve.SemanticModel;
 import org.sonar.plugins.java.api.tree.BlockTree;
 import org.sonar.plugins.java.api.tree.ClassTree;
 import org.sonar.plugins.java.api.tree.CompilationUnitTree;
+import org.sonar.plugins.java.api.tree.ExpressionStatementTree;
+import org.sonar.plugins.java.api.tree.MethodInvocationTree;
 import org.sonar.plugins.java.api.tree.MethodTree;
+import org.sonar.plugins.java.api.tree.ParameterizedTypeTree;
 import org.sonar.plugins.java.api.tree.Tree;
 import org.sonar.plugins.java.api.tree.VariableTree;
 
@@ -138,6 +141,27 @@ public class JParserTest {
   @Test
   public void type_var() {
     test("class C { void m() { var i = 42; } }");
+  }
+
+  @org.junit.Ignore
+  @Test
+  public void problematic_tokens() {
+    // TODO > > vs >>
+    {
+      CompilationUnitTree t = test("class C { List < List < String \n > > f; }");
+      ClassTree c = (ClassTree) t.types().get(0);
+      VariableTree v = (VariableTree) c.members().get(0);
+      ParameterizedTypeTree type = (ParameterizedTypeTree) v.type();
+      assertEquals(3, type.typeArguments().closeBracketToken().column());
+    }
+    {
+      CompilationUnitTree t = test("class C { void m() { x. < List < List \n > > m(); } }");
+      ClassTree c = (ClassTree) t.types().get(0);
+      MethodTree m = (MethodTree) c.members().get(0);
+      ExpressionStatementTree e = (ExpressionStatementTree) m.block().body().get(0);
+      MethodInvocationTree methodInvocation = (MethodInvocationTree) e.expression();
+      assertEquals(3, methodInvocation.typeArguments().closeBracketToken().column());
+    }
   }
 
   @Test
