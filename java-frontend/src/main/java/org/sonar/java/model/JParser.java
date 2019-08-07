@@ -248,14 +248,6 @@ public class JParser {
   }
 
   /**
-   * @deprecated use {@link #parse(String, String, String, List)} instead
-   */
-  @Deprecated
-  public static CompilationUnitTree parse(String unitName, String source, List<File> classpath) {
-    return parse("12", unitName, source, classpath);
-  }
-
-  /**
    * @param unitName see {@link ASTParser#setUnitName(String)}
    * @throws RecognitionException in case of syntax error
    */
