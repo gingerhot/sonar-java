@@ -412,9 +412,10 @@ public class JParser {
    * @param tokenType {@link TerminalTokens}
    */
   private int nextTokenIndex(int tokenIndex, int tokenType) {
-    while (tokenManager.get(tokenIndex).tokenType != tokenType) {
+    assert tokenType != -1;
+    do {
       tokenIndex += 1;
-    }
+    } while (tokenManager.get(tokenIndex).tokenType != tokenType);
     return tokenIndex;
   }
 
