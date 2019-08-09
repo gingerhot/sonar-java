@@ -1025,11 +1025,15 @@ public class JParser {
       return null;
     }
     ASTNode last = (ASTNode) list.get(list.size() - 1);
+    int tokenIndex = tokenManager.firstIndexAfter(last, /* any */ -1);
+    while (isWhitespaceOrComment(tokenManager.get(tokenIndex))) {
+      tokenIndex++;
+    }
     return convertTypeArguments(
       firstTokenBefore((ASTNode) list.get(0), TerminalTokens.TokenNameLESS),
       list,
       // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
-      createSyntaxToken(last.getStartPosition() + last.getLength() - 1, ">")
+      createSyntaxToken(tokenManager.get(tokenIndex).originalEnd, ">")
     );
   }
 
@@ -1054,11 +1058,15 @@ public class JParser {
       return new TypeParameterListTreeImpl();
     }
     ASTNode last = (ASTNode) list.get(list.size() - 1);
+    int tokenIndex = tokenManager.firstIndexAfter(last, /* any */ -1 );
+    while (isWhitespaceOrComment(tokenManager.get(tokenIndex))) {
+      tokenIndex++;
+    }
     TypeParameterListTreeImpl t = new TypeParameterListTreeImpl(
       firstTokenBefore((ASTNode) list.get(0), TerminalTokens.TokenNameLESS),
       new ArrayList<>(), new ArrayList<>(),
       // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
-      createSyntaxToken(last.getStartPosition() + last.getLength() - 1, ">")
+      createSyntaxToken(tokenManager.get(tokenIndex).originalEnd, ">")
     );
     for (int i = 0; i < list.size(); i++) {
       TypeParameter o = (TypeParameter) list.get(i);

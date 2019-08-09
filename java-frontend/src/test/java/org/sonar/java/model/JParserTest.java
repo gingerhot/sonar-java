@@ -143,25 +143,22 @@ public class JParserTest {
     test("class C { void m() { var i = 42; } }");
   }
 
-  @org.junit.Ignore
   @Test
-  public void problematic_tokens() {
-    // TODO > > vs >>
-    {
-      CompilationUnitTree t = test("class C { List < List < String \n > > f; }");
-      ClassTree c = (ClassTree) t.types().get(0);
-      VariableTree v = (VariableTree) c.members().get(0);
-      ParameterizedTypeTree type = (ParameterizedTypeTree) v.type();
-      assertEquals(3, type.typeArguments().closeBracketToken().column());
-    }
-    {
-      CompilationUnitTree t = test("class C { void m() { x. < List < List \n > > m(); } }");
-      ClassTree c = (ClassTree) t.types().get(0);
-      MethodTree m = (MethodTree) c.members().get(0);
-      ExpressionStatementTree e = (ExpressionStatementTree) m.block().body().get(0);
-      MethodInvocationTree methodInvocation = (MethodInvocationTree) e.expression();
-      assertEquals(3, methodInvocation.typeArguments().closeBracketToken().column());
-    }
+  public void type_arguments() {
+    test("class C<P> {"
+      + "  void m() {"
+      + "    this.<C   > m();"
+      + "    this.<C<C>> m();"
+      + "  }"
+      + "}");
+  }
+
+  @Test
+  public void type_parameters() {
+    test("class C<P> {"
+      + "  <P             > void m1() {}"
+      + "  <P extends C<C>> void m2() {}"
+      + "}");
   }
 
   @Test
