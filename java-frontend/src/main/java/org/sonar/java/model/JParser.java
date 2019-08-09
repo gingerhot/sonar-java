@@ -1204,7 +1204,7 @@ public class JParser {
           );
         }
         t.setEndToken(
-          i < e.fragments().size() - 1 ? lastTokenIn(e, TerminalTokens.TokenNameCOMMA) : lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+          firstTokenAfter(fragment, i < e.fragments().size() - 1 ? TerminalTokens.TokenNameCOMMA : TerminalTokens.TokenNameSEMICOLON)
         );
         statements.add(t);
       }
@@ -1695,7 +1695,7 @@ public class JParser {
           TypeTree type = convertType(e.getType());
           while (type.is(Tree.Kind.ARRAY_TYPE)) {
             ArrayTypeTree arrayType = (ArrayTypeTree) type;
-            dimensions.add(new ArrayDimensionTreeImpl(
+            dimensions.add(/* TODO suboptimal */ 0, new ArrayDimensionTreeImpl(
               arrayType.openBracketToken(),
               null,
               arrayType.closeBracketToken()
@@ -2234,12 +2234,16 @@ public class JParser {
       case ASTNode.ARRAY_TYPE: {
         ArrayType e = (ArrayType) node;
         TypeTree t = convertType(e.getElementType());
+        int tokenIndex = tokenManager.firstIndexAfter(e.getElementType(), TerminalTokens.TokenNameLBRACKET);
         for (int i = 0; i < e.dimensions().size(); i++) {
+          if (i > 0) {
+            tokenIndex = nextTokenIndex(tokenIndex, TerminalTokens.TokenNameLBRACKET);
+          }
           t = new JavaTree.ArrayTypeTreeImpl(
             t,
             (List) convertAnnotations(((Dimension) e.dimensions().get(i)).annotations()),
-            firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameLBRACKET),
-            firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameRBRACKET)
+            createSyntaxToken(tokenIndex),
+            createSyntaxToken(nextTokenIndex(tokenIndex, TerminalTokens.TokenNameRBRACKET))
           );
         }
         return t;
