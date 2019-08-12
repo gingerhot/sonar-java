@@ -34,7 +34,6 @@ import static org.mockito.Mockito.when;
 
 public class ParsingErrorCheckTest {
 
-  @org.junit.Ignore("line 1: Syntax error on token \"class\", delete this token")
   @Test
   public void test() {
     SonarComponents sonarComponents = mock(SonarComponents.class);

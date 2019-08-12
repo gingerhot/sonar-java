@@ -24,7 +24,6 @@ import org.sonar.java.checks.verifier.JavaCheckVerifier;
 
 public class OperatorPrecedenceCheckTest {
 
-  @org.junit.Ignore("line 35: Syntax error on token \";\", assert expected after this token")
   @Test
   public void test() {
     JavaCheckVerifier.verify("src/test/files/checks/OperatorPrecedence.java", new OperatorPrecedenceCheck());

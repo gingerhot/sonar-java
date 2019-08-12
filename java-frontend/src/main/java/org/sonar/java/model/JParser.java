@@ -19,6 +19,7 @@
  */
 package org.sonar.java.model;
 
+import com.sonar.sslr.api.RecognitionException;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
@@ -54,6 +55,7 @@ import org.eclipse.jdt.core.dom.EmptyStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
+import org.eclipse.jdt.core.dom.ExportsDirective;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
@@ -74,17 +76,23 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
+import org.eclipse.jdt.core.dom.ModuleDirective;
+import org.eclipse.jdt.core.dom.ModuleModifier;
+import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.NormalAnnotation;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
+import org.eclipse.jdt.core.dom.OpensDirective;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.ProvidesDirective;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.QualifiedType;
+import org.eclipse.jdt.core.dom.RequiresDirective;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
@@ -97,6 +105,7 @@ import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SuperMethodReference;
 import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchExpression;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThisExpression;
@@ -109,6 +118,7 @@ import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.TypeMethodReference;
 import org.eclipse.jdt.core.dom.TypeParameter;
 import org.eclipse.jdt.core.dom.UnionType;
+import org.eclipse.jdt.core.dom.UsesDirective;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -136,10 +146,16 @@ import org.sonar.java.ast.parser.TypeUnionListTreeImpl;
 import org.sonar.java.model.declaration.AnnotationTreeImpl;
 import org.sonar.java.model.declaration.ClassTreeImpl;
 import org.sonar.java.model.declaration.EnumConstantTreeImpl;
+import org.sonar.java.model.declaration.ExportsDirectiveTreeImpl;
 import org.sonar.java.model.declaration.MethodTreeImpl;
 import org.sonar.java.model.declaration.ModifierKeywordTreeImpl;
 import org.sonar.java.model.declaration.ModifiersTreeImpl;
 import org.sonar.java.model.declaration.ModuleDeclarationTreeImpl;
+import org.sonar.java.model.declaration.ModuleNameListTreeImpl;
+import org.sonar.java.model.declaration.OpensDirectiveTreeImpl;
+import org.sonar.java.model.declaration.ProvidesDirectiveTreeImpl;
+import org.sonar.java.model.declaration.RequiresDirectiveTreeImpl;
+import org.sonar.java.model.declaration.UsesDirectiveTreeImpl;
 import org.sonar.java.model.declaration.VariableTreeImpl;
 import org.sonar.java.model.expression.ArrayAccessExpressionTreeImpl;
 import org.sonar.java.model.expression.AssignmentExpressionTreeImpl;
@@ -193,6 +209,8 @@ import org.sonar.plugins.java.api.tree.IdentifierTree;
 import org.sonar.plugins.java.api.tree.ImportClauseTree;
 import org.sonar.plugins.java.api.tree.ModifierTree;
 import org.sonar.plugins.java.api.tree.ModuleDeclarationTree;
+import org.sonar.plugins.java.api.tree.ModuleDirectiveTree;
+import org.sonar.plugins.java.api.tree.ModuleNameTree;
 import org.sonar.plugins.java.api.tree.PackageDeclarationTree;
 import org.sonar.plugins.java.api.tree.StatementTree;
 import org.sonar.plugins.java.api.tree.SyntaxToken;
@@ -216,11 +234,6 @@ import java.util.Map;
 public class JParser {
 
   public static boolean ENABLED;
-  /**
-   * @deprecated should be removed
-   */
-  @Deprecated
-  private static boolean ASSERTIONS = Boolean.getBoolean("sonar.java.internal.ecj.assertions");
   private static boolean COMPARE_COMMENTS = Boolean.getBoolean("sonar.java.internal.ecj.compare_comments");
   private static boolean COMPARE_TREES = Boolean.getBoolean("sonar.java.internal.ecj.compare_trees");
 
@@ -228,7 +241,6 @@ public class JParser {
     ENABLED = Boolean.parseBoolean(System.getProperty("sonar.java.internal.ecj", "true"));
     if (ENABLED) {
       System.err.println("Using ECJ parser"
-        + (ASSERTIONS ? " (assertions)" : "")
         + (COMPARE_COMMENTS ? " (compare comments)" : "")
         + (COMPARE_TREES ? " (compare trees)" : "")
       );
@@ -236,28 +248,14 @@ public class JParser {
   }
 
   /**
-   * @deprecated use {@link #parse(String, String, String, List)} instead
-   */
-  @Deprecated
-  static CompilationUnitTree parse(String source) {
-    return parse("Fake.java", source, Collections.emptyList());
-  }
-
-  /**
-   * @deprecated use {@link #parse(String, String, String, List)} instead
-   */
-  @Deprecated
-  public static CompilationUnitTree parse(String unitName, String source, List<File> classpath) {
-    return parse("12", unitName, source, classpath);
-  }
-
-  /**
    * @param unitName see {@link ASTParser#setUnitName(String)}
+   * @throws RecognitionException in case of syntax error
    */
   public static CompilationUnitTree parse(String version, String unitName, String source, List<File> classpath) {
     ASTParser astParser = ASTParser.newParser(AST.JLS12);
     Map<String, String> options = new HashMap<>();
     options.put(JavaCore.COMPILER_SOURCE, version);
+    options.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, "enabled");
     astParser.setCompilerOptions(options);
 
     astParser.setEnvironment(
@@ -291,14 +289,18 @@ public class JParser {
       System.err.println(message);
 
       // TODO more for problem.isError()
-      if (problem.getMessage().contains("Syntax error")) {
-        throw new UnsupportedOperationException(message);
+      if (!problem.getMessage().contains("Syntax error")) {
+        continue;
       }
+
+      final int line = problem.getSourceLineNumber();
+      final int column = astNode.getColumnNumber(problem.getSourceStart());
+      throw new RecognitionException(line, "Parse error at line " + line + " column " + column + ": " + problem.getMessage());
     }
 
     JParser converter = new JParser();
     converter.compilationUnit = astNode;
-    converter.tokenManager = new TokenManager(lex(version, sourceChars), source, new DefaultCodeFormatterOptions(new HashMap<>()));
+    converter.tokenManager = new TokenManager(lex(version, unitName, sourceChars), source, new DefaultCodeFormatterOptions(new HashMap<>()));
 
     CompilationUnitTree tree = converter.convertCompilationUnit(astNode);
     setParents(tree);
@@ -366,7 +368,7 @@ public class JParser {
     return ((JavaTree) node).getChildren().iterator();
   }
 
-  private static List<Token> lex(String version, char[] sourceChars) {
+  private static List<Token> lex(String version, String unitName, char[] sourceChars) {
     List<Token> tokens = new ArrayList<>();
     Scanner scanner = new Scanner(
       true,
@@ -377,6 +379,7 @@ public class JParser {
       null,
       false
     );
+    scanner.fakeInModule = "module-info.java".equals(unitName);
     scanner.setSource(sourceChars);
     while (true) {
       try {
@@ -396,6 +399,25 @@ public class JParser {
   private CompilationUnit compilationUnit;
 
   private TokenManager tokenManager;
+
+  private int firstTokenIndexAfter(ASTNode e) {
+    int index = tokenManager.firstIndexAfter(e, /* any */ -1);
+    while (isWhitespaceOrComment(tokenManager.get(index))) {
+      index++;
+    }
+    return index;
+  }
+
+  /**
+   * @param tokenType {@link TerminalTokens}
+   */
+  private int nextTokenIndex(int tokenIndex, int tokenType) {
+    assert tokenType != -1;
+    do {
+      tokenIndex += 1;
+    } while (tokenManager.get(tokenIndex).tokenType != tokenType);
+    return tokenIndex;
+  }
 
   /**
    * @param tokenType {@link TerminalTokens}
@@ -427,7 +449,7 @@ public class JParser {
 
   @Deprecated
   private InternalSyntaxToken createSyntaxToken(int position, String value) {
-    assert ">".equals(value) || ";".equals(value);
+    assert ">".equals(value);
     return new InternalSyntaxToken(
       compilationUnit.getLineNumber(position),
       compilationUnit.getColumnNumber(position),
@@ -464,6 +486,7 @@ public class JParser {
 
     t = tokenManager.get(tokenIndex);
     return new InternalSyntaxToken(
+      // FIXME line and column are incorrect for EOF token
       compilationUnit.getLineNumber(t.originalStart),
       compilationUnit.getColumnNumber(t.originalStart),
       t.tokenType == TerminalTokens.TokenNameEOF ? "" : t.toString(tokenManager.getSource()),
@@ -551,15 +574,131 @@ public class JParser {
     if (e == null) {
       return null;
     }
+    List<ModuleDirectiveTree> moduleDirectives = new ArrayList<>();
+    for (Object o : e.moduleStatements()) {
+      moduleDirectives.add(
+        convertModuleDirective((ModuleDirective) o)
+      );
+    }
     return new ModuleDeclarationTreeImpl(
-      Collections.emptyList(),
-      null,
-      firstTokenIn(e, TerminalTokens.TokenNameIdentifier), // TODO Scanner.fakeInModule for TokenNamemodule ?
-      new ModuleNameTreeImpl(Collections.emptyList(), Collections.emptyList()), // TODO convertExpression(e.getName());
-      firstTokenIn(e, TerminalTokens.TokenNameLBRACE),
-      Collections.emptyList(), // TODO e.moduleStatements()
+      convertAnnotations(e.annotations()),
+      e.isOpen() ? firstTokenIn(e, TerminalTokens.TokenNameopen) : null,
+      firstTokenBefore(e.getName(), TerminalTokens.TokenNamemodule),
+      convertModuleName(e.getName()),
+      firstTokenAfter(e.getName(), TerminalTokens.TokenNameLBRACE),
+      moduleDirectives,
       lastTokenIn(e, TerminalTokens.TokenNameRBRACE)
     );
+  }
+
+  private ModuleNameTreeImpl convertModuleName(Name node) {
+    switch (node.getNodeType()) {
+      default:
+        throw new IllegalStateException(ASTNode.nodeClassForType(node.getNodeType()).toString());
+      case ASTNode.QUALIFIED_NAME: {
+        QualifiedName e = (QualifiedName) node;
+        ModuleNameTreeImpl t = convertModuleName(e.getQualifier());
+        t.add(
+          new IdentifierTreeImpl(firstTokenIn(e.getName(), TerminalTokens.TokenNameIdentifier))
+        );
+        return t;
+      }
+      case ASTNode.SIMPLE_NAME: {
+        SimpleName e = (SimpleName) node;
+        ModuleNameTreeImpl t = new ModuleNameTreeImpl(new ArrayList<>(), Collections.emptyList());
+        t.add(
+          new IdentifierTreeImpl(firstTokenIn(e, TerminalTokens.TokenNameIdentifier))
+        );
+        return t;
+      }
+    }
+  }
+
+  private ModuleNameListTreeImpl convertModuleNames(List list) {
+    ModuleNameListTreeImpl t = new ModuleNameListTreeImpl(new ArrayList<>(), new ArrayList<>());
+    for (int i = 0; i < list.size(); i++) {
+      Name o = (Name) list.get(i);
+      if (i > 0) {
+        t.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+      }
+      t.add(convertModuleName(o));
+    }
+    return t;
+  }
+
+  private ModuleDirectiveTree convertModuleDirective(ModuleDirective node) {
+    switch (node.getNodeType()) {
+      default:
+        throw new IllegalStateException(ASTNode.nodeClassForType(node.getNodeType()).toString());
+      case ASTNode.REQUIRES_DIRECTIVE: {
+        RequiresDirective e = (RequiresDirective) node;
+        ModifiersTreeImpl modifiers = new ModifiersTreeImpl(new ArrayList<>());
+        for (Object o : e.modifiers()) {
+          switch (((ModuleModifier) o).getKeyword().toString()) {
+            default:
+              throw new IllegalStateException();
+            case "static":
+              modifiers.add(new ModifierKeywordTreeImpl(org.sonar.plugins.java.api.tree.Modifier.STATIC, firstTokenIn((ASTNode) o, /* any */ -1)));
+              break;
+            case "transitive":
+              modifiers.add(new ModifierKeywordTreeImpl(org.sonar.plugins.java.api.tree.Modifier.TRANSITIVE, firstTokenIn((ASTNode) o, /* any */ -1)));
+              break;
+          }
+        }
+        return new RequiresDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNamerequires),
+          modifiers,
+          convertModuleName(e.getName()),
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+      case ASTNode.EXPORTS_DIRECTIVE: {
+        ExportsDirective e = (ExportsDirective) node;
+        return new ExportsDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameexports),
+          convertExpression(e.getName()),
+          e.modules().isEmpty() ? null : firstTokenAfter(e.getName(), TerminalTokens.TokenNameto),
+          convertModuleNames(e.modules()),
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+      case ASTNode.OPENS_DIRECTIVE: {
+        OpensDirective e = (OpensDirective) node;
+        return new OpensDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameopens),
+          convertExpression(e.getName()),
+          e.modules().isEmpty() ? null : firstTokenAfter(e.getName(), TerminalTokens.TokenNameto),
+          convertModuleNames(e.modules()),
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+      case ASTNode.USES_DIRECTIVE: {
+        UsesDirective e = (UsesDirective) node;
+        return new UsesDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameuses),
+          (TypeTree) convertExpression(e.getName()),
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+      case ASTNode.PROVIDES_DIRECTIVE: {
+        ProvidesDirective e = (ProvidesDirective) node;
+        QualifiedIdentifierListTreeImpl typeNames = new QualifiedIdentifierListTreeImpl(new ArrayList<>(), new ArrayList<>());
+        for (int i = 0; i < e.implementations().size(); i++) {
+          Name o = (Name) e.implementations().get(i);
+          if (i > 0) {
+            typeNames.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+          }
+          typeNames.add((TypeTree) convertExpression(o));
+        }
+        return new ProvidesDirectiveTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameprovides),
+          (TypeTree) convertExpression(e.getName()),
+          firstTokenAfter(e.getName(), TerminalTokens.TokenNamewith),
+          typeNames,
+          lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+        );
+      }
+    }
   }
 
   private ClassTreeImpl convertTypeDeclaration(AbstractTypeDeclaration e) {
@@ -637,21 +776,9 @@ public class JParser {
 
     if (kind == Tree.Kind.CLASS || kind == Tree.Kind.INTERFACE) {
       TypeDeclaration ee = (TypeDeclaration) e;
-      if (!ee.typeParameters().isEmpty()) {
-        ASTNode last = (ASTNode) ee.typeParameters().get(ee.typeParameters().size() - 1);
-        TypeParameterListTreeImpl typeParameters = new TypeParameterListTreeImpl(
-          firstTokenBefore((ASTNode) ee.typeParameters().get(0), TerminalTokens.TokenNameLESS),
-          new ArrayList<>(), new ArrayList<>(),
-          // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
-          createSyntaxToken(last.getStartPosition() + last.getLength() - 1, ">")
-        );
-        for (Object o : ee.typeParameters()) {
-          typeParameters.add(
-            convertTypeParameter((TypeParameter) o)
-          );
-        }
-        t.completeTypeParameters(typeParameters);
-      }
+      t.completeTypeParameters(
+        convertTypeParameters(ee.typeParameters())
+      );
     }
 
     switch (kind) {
@@ -670,10 +797,14 @@ public class JParser {
         if (!superInterfaceTypes.isEmpty()) {
           QualifiedIdentifierListTreeImpl superInterfaces = new QualifiedIdentifierListTreeImpl(
             new ArrayList<>(),
-            new ArrayList<>() // FIXME separators
+            new ArrayList<>()
           );
-          for (Object o : superInterfaceTypes) {
-            superInterfaces.add(convertType((Type) o));
+          for (int i = 0; i < superInterfaceTypes.size(); i++) {
+            Type o = (Type) superInterfaceTypes.get(i);
+            if (i > 0) {
+              superInterfaces.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+            }
+            superInterfaces.add(convertType(o));
           }
           t.completeInterfaces(
             firstTokenBefore((ASTNode) superInterfaceTypes.get(0), kind == Tree.Kind.INTERFACE ? TerminalTokens.TokenNameextends : TerminalTokens.TokenNameimplements),
@@ -687,12 +818,18 @@ public class JParser {
   }
 
   private EnumConstantTreeImpl processEnumConstantDeclaration(EnumConstantDeclaration e) {
-    ArgumentListTreeImpl arguments = convertArguments(
-      null, // FIXME tokens
-      e.arguments(),
-      null
-    );
+    final int openParTokenIndex = firstTokenIndexAfter(e.getName());
+    final InternalSyntaxToken openParToken;
+    final InternalSyntaxToken closeParToken;
+    if (tokenManager.get(openParTokenIndex).tokenType == TerminalTokens.TokenNameLPAREN) {
+      openParToken = createSyntaxToken(openParTokenIndex);
+      closeParToken = e.arguments().isEmpty() ? firstTokenAfter(e.getName(), TerminalTokens.TokenNameRPAREN) : firstTokenAfter((ASTNode) e.arguments().get(e.arguments().size() - 1), TerminalTokens.TokenNameRPAREN);
+    } else {
+      openParToken = null;
+      closeParToken = null;
+    }
 
+    final ArgumentListTreeImpl arguments = convertArguments(openParToken, e.arguments(), closeParToken);
     ClassTreeImpl classBody = null;
     if (e.getAnonymousClassDeclaration() != null) {
       List<Tree> members = new ArrayList<>();
@@ -707,10 +844,7 @@ public class JParser {
       );
     }
 
-    int separatorTokenIndex = tokenManager.firstIndexAfter(e, /* any */ -1);
-    while (isWhitespaceOrComment(tokenManager.get(separatorTokenIndex))) {
-      separatorTokenIndex++;
-    }
+    final int separatorTokenIndex = firstTokenIndexAfter(e);
     final InternalSyntaxToken separatorToken;
     switch (tokenManager.get(separatorTokenIndex).tokenType) {
       default:
@@ -794,22 +928,6 @@ public class JParser {
       case ASTNode.METHOD_DECLARATION: {
         MethodDeclaration e = (MethodDeclaration) node;
 
-        TypeParameterListTreeImpl typeParameters = new TypeParameterListTreeImpl();
-        if (!e.typeParameters().isEmpty()) {
-          ASTNode last = (ASTNode) e.typeParameters().get(e.typeParameters().size() - 1);
-          typeParameters = new TypeParameterListTreeImpl(
-            firstTokenBefore((ASTNode) e.typeParameters().get(0), TerminalTokens.TokenNameLESS),
-            new ArrayList<>(), new ArrayList<>(),
-            // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
-            createSyntaxToken(last.getStartPosition() + last.getLength() - 1, ">")
-          );
-          for (Object o : e.typeParameters()) {
-            typeParameters.add(
-              convertTypeParameter((TypeParameter) o)
-            );
-          }
-        }
-
         FormalParametersListTreeImpl parameters = new FormalParametersListTreeImpl(
           firstTokenAfter(e.getName(), TerminalTokens.TokenNameLPAREN),
           firstTokenAfter(
@@ -826,8 +944,12 @@ public class JParser {
         }
 
         QualifiedIdentifierListTreeImpl thrownExceptionTypes = new QualifiedIdentifierListTreeImpl(new ArrayList<>(), new ArrayList<>());
-        for (Object o : e.thrownExceptionTypes()) {
-          thrownExceptionTypes.add(convertType((Type) o));
+        for (int i = 0; i < e.thrownExceptionTypes().size(); i++) {
+          Type o = (Type) e.thrownExceptionTypes().get(i);
+          if (i > 0) {
+            thrownExceptionTypes.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+          }
+          thrownExceptionTypes.add(convertType(o));
         }
 
         members.add(new MethodTreeImpl(
@@ -841,7 +963,7 @@ public class JParser {
         ).completeWithModifiers(
           convertModifiers(e.modifiers())
         ).completeWithTypeParameters(
-          typeParameters
+          convertTypeParameters(e.typeParameters())
         ));
         lastTokenIndex = tokenManager.lastIndexIn(node, e.getBody() == null ? TerminalTokens.TokenNameSEMICOLON : TerminalTokens.TokenNameRBRACE);
         break;
@@ -903,11 +1025,15 @@ public class JParser {
       return null;
     }
     ASTNode last = (ASTNode) list.get(list.size() - 1);
+    int tokenIndex = tokenManager.firstIndexAfter(last, /* any */ -1);
+    while (isWhitespaceOrComment(tokenManager.get(tokenIndex))) {
+      tokenIndex++;
+    }
     return convertTypeArguments(
       firstTokenBefore((ASTNode) list.get(0), TerminalTokens.TokenNameLESS),
       list,
       // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
-      createSyntaxToken(last.getStartPosition() + last.getLength() - 1, ">")
+      createSyntaxToken(tokenManager.get(tokenIndex).originalEnd, ">")
     );
   }
 
@@ -927,15 +1053,36 @@ public class JParser {
     return typeArguments;
   }
 
-  private TypeParameterTree convertTypeParameter(TypeParameter e) {
-    // FIXME e.modifiers()
-    if (ASSERTIONS && !e.modifiers().isEmpty()) {
-      throw new AssertionError();
+  private TypeParameterListTreeImpl convertTypeParameters(List list) {
+    if (list.isEmpty()) {
+      return new TypeParameterListTreeImpl();
     }
+    ASTNode last = (ASTNode) list.get(list.size() - 1);
+    int tokenIndex = tokenManager.firstIndexAfter(last, /* any */ -1 );
+    while (isWhitespaceOrComment(tokenManager.get(tokenIndex))) {
+      tokenIndex++;
+    }
+    TypeParameterListTreeImpl t = new TypeParameterListTreeImpl(
+      firstTokenBefore((ASTNode) list.get(0), TerminalTokens.TokenNameLESS),
+      new ArrayList<>(), new ArrayList<>(),
+      // TerminalTokens.TokenNameUNSIGNED_RIGHT_SHIFT vs TerminalTokens.TokenNameGREATER
+      createSyntaxToken(tokenManager.get(tokenIndex).originalEnd, ">")
+    );
+    for (int i = 0; i < list.size(); i++) {
+      TypeParameter o = (TypeParameter) list.get(i);
+      if (i > 0) {
+        t.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+      }
+      t.add(convertTypeParameter(o));
+    }
+    return t;
+  }
+
+  private TypeParameterTree convertTypeParameter(TypeParameter e) {
+    IdentifierTreeImpl t = convertSimpleName(e.getName());
+    t.complete(convertAnnotations(e.modifiers())); // TODO why modifiers in ECJ?
     if (e.typeBounds().isEmpty()) {
-      return new TypeParameterTreeImpl(
-        convertSimpleName(e.getName())
-      );
+      return new TypeParameterTreeImpl(t);
     } else {
       BoundListTreeImpl bounds = new BoundListTreeImpl(new ArrayList<>(), new ArrayList<>());
       for (Object o : e.typeBounds()) {
@@ -945,7 +1092,7 @@ public class JParser {
         firstTokenAfter(e.getName(), TerminalTokens.TokenNameextends),
         bounds
       ).complete(
-        convertSimpleName(e.getName())
+        t
       );
     }
   }
@@ -956,12 +1103,9 @@ public class JParser {
   private TypeTree applyExtraDimensions(TypeTree type, List extraDimensions) {
     for (Object o : extraDimensions) {
       Dimension e = (Dimension) o;
-      if (ASSERTIONS && !e.annotations().isEmpty()) {
-        throw new AssertionError();
-      }
       type = new JavaTree.ArrayTypeTreeImpl(
         type,
-        Collections.emptyList(), // FIXME annotations
+        (List) convertAnnotations(e.annotations()),
         firstTokenIn(e, TerminalTokens.TokenNameLBRACKET),
         firstTokenIn(e, TerminalTokens.TokenNameRBRACKET)
       );
@@ -976,7 +1120,7 @@ public class JParser {
     if (e.isVarargs()) {
       type = new JavaTree.ArrayTypeTreeImpl(
         type,
-        Collections.emptyList(), // FIXME annotations,
+        (List) convertAnnotations(e.varargsAnnotations()),
         firstTokenAfter(e.getType(), TerminalTokens.TokenNameELLIPSIS)
       );
     }
@@ -988,18 +1132,23 @@ public class JParser {
       convertSimpleName(e.getName())
     );
     if (e.getInitializer() != null) {
-      t.equalToken = firstTokenAfter(e.getName(), TerminalTokens.TokenNameEQUAL);
-      t.initializer = convertExpression(e.getInitializer());
+      t.completeTypeAndInitializer(
+        t.type(),
+        firstTokenAfter(e.getName(), TerminalTokens.TokenNameEQUAL),
+        convertExpression(e.getInitializer())
+      );
     }
     return t;
   }
 
   private void addVariableToList(VariableDeclarationExpression e2, List list) {
+    ModifiersTreeImpl modifiers = convertModifiers(e2.modifiers());
     TypeTree type = convertType(e2.getType());
 
     for (int i = 0; i < e2.fragments().size(); i++) {
       VariableDeclarationFragment fragment = (VariableDeclarationFragment) e2.fragments().get(i);
       VariableTreeImpl t = new VariableTreeImpl(convertSimpleName(fragment.getName()));
+      t.completeModifiers(modifiers);
       if (fragment.getInitializer() == null) {
         t.completeType(type);
       } else {
@@ -1063,7 +1212,7 @@ public class JParser {
           );
         }
         t.setEndToken(
-          i < e.fragments().size() - 1 ? lastTokenIn(e, TerminalTokens.TokenNameCOMMA) : lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+          firstTokenAfter(fragment, i < e.fragments().size() - 1 ? TerminalTokens.TokenNameCOMMA : TerminalTokens.TokenNameSEMICOLON)
         );
         statements.add(t);
       }
@@ -1100,35 +1249,50 @@ public class JParser {
         ForStatement e = (ForStatement) node;
 
         StatementExpressionListTreeImpl forInitStatement = new StatementExpressionListTreeImpl(new ArrayList<>(), new ArrayList<>());
-        for (Object o : e.initializers()) {
-          if (ASTNode.VARIABLE_DECLARATION_EXPRESSION == ((Expression) o).getNodeType()) {
+        for (int i = 0; i < e.initializers().size(); i++) {
+          Expression o = (Expression) e.initializers().get(i);
+          if (i > 0) {
+            forInitStatement.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+          }
+          if (ASTNode.VARIABLE_DECLARATION_EXPRESSION == o.getNodeType()) {
             addVariableToList(
               (VariableDeclarationExpression) o,
               forInitStatement
             );
           } else {
             forInitStatement.add(new ExpressionStatementTreeImpl(
-              convertExpression((Expression) o),
+              convertExpression(o),
               null
             ));
           }
         }
 
         StatementExpressionListTreeImpl forUpdateStatement = new StatementExpressionListTreeImpl(new ArrayList<>(), new ArrayList<>());
-        for (Object o : e.updaters()) {
+        for (int i = 0; i < e.updaters().size(); i++) {
+          Expression o = (Expression) e.updaters().get(i);
+          if (i > 0) {
+            forUpdateStatement.separators().add(firstTokenBefore(o, TerminalTokens.TokenNameCOMMA));
+          }
           forUpdateStatement.add(new ExpressionStatementTreeImpl(
-            convertExpression((Expression) o),
+            convertExpression(o),
             null
           ));
         }
+
+        final int firstSemicolonTokenIndex = e.initializers().isEmpty()
+          ? tokenManager.firstIndexIn(e, TerminalTokens.TokenNameSEMICOLON)
+          : tokenManager.firstIndexAfter((ASTNode) e.initializers().get(e.initializers().size() - 1), TerminalTokens.TokenNameSEMICOLON);
+        final int secondSemicolonTokenIndex = e.getExpression() == null
+          ? nextTokenIndex(firstSemicolonTokenIndex, TerminalTokens.TokenNameSEMICOLON)
+          : tokenManager.firstIndexAfter(e.getExpression(), TerminalTokens.TokenNameSEMICOLON);
 
         return new ForStatementTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNamefor),
           firstTokenIn(e, TerminalTokens.TokenNameLPAREN),
           forInitStatement,
-          createSyntaxToken(e.getStartPosition(), ";"), // FIXME
+          createSyntaxToken(firstSemicolonTokenIndex),
           convertExpression(e.getExpression()),
-          createSyntaxToken(e.getStartPosition(), ";"), // FIXME
+          createSyntaxToken(secondSemicolonTokenIndex),
           forUpdateStatement,
           firstTokenBefore(e.getBody(), TerminalTokens.TokenNameRPAREN),
           convertStatement(e.getBody())
@@ -1169,9 +1333,15 @@ public class JParser {
       }
       case ASTNode.BREAK_STATEMENT: {
         BreakStatement e = (BreakStatement) node;
+        if (e.isImplicit()) {
+          return new ExpressionStatementTreeImpl(
+            convertExpression(e.getExpression()),
+            lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
+          );
+        }
         return new BreakStatementTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNamebreak),
-          convertSimpleName(e.getLabel()),
+          e.getExpression() == null ? convertSimpleName(e.getLabel()) : convertExpression(e.getExpression()),
           lastTokenIn(e, TerminalTokens.TokenNameSEMICOLON)
         );
       }
@@ -1208,50 +1378,13 @@ public class JParser {
       }
       case ASTNode.SWITCH_STATEMENT: {
         SwitchStatement e = (SwitchStatement) node;
-
-        List<CaseGroupTreeImpl> groups = new ArrayList<>();
-        List<CaseLabelTreeImpl> labels = null;
-        BlockStatementListTreeImpl body = null;
-        for (Object o : e.statements()) {
-          if (o instanceof SwitchCase) {
-            if (labels == null) {
-              labels = new ArrayList<>();
-              body = new BlockStatementListTreeImpl(new ArrayList<>());
-            }
-
-            SwitchCase c = (SwitchCase) o;
-            labels.add(new CaseLabelTreeImpl(
-              firstTokenIn(c, c.isDefault() ? TerminalTokens.TokenNamedefault : TerminalTokens.TokenNamecase),
-              // TODO multiple expressions
-              c.isDefault() ? Collections.emptyList() : Collections.singletonList(convertExpression((Expression) c.expressions().get(0))),
-              // TODO can be "->" TerminalTokens.TokenNameARROW
-              lastTokenIn(c, TerminalTokens.TokenNameCOLON)
-            ));
-          } else {
-            if (labels != null) {
-              groups.add(new CaseGroupTreeImpl(
-                labels,
-                body
-              ));
-            }
-            labels = null;
-            addStatementToList((Statement) o, body);
-          }
-        }
-        if (labels != null) {
-          groups.add(new CaseGroupTreeImpl(
-            labels,
-            body
-          ));
-        }
-
         return new SwitchStatementTreeImpl(new SwitchExpressionTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNameswitch),
           firstTokenBefore(e.getExpression(), TerminalTokens.TokenNameLPAREN),
           convertExpression(e.getExpression()),
           firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameRPAREN),
           firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameLBRACE),
-          groups,
+          convertSwitchStatements(e.statements()),
           lastTokenIn(e, TerminalTokens.TokenNameRBRACE)
         ));
       }
@@ -1359,7 +1492,7 @@ public class JParser {
 
         return new TryStatementTreeImpl(
           firstTokenIn(e, TerminalTokens.TokenNametry),
-          e.resources().isEmpty() ? null : firstTokenBefore(e.getBody(), TerminalTokens.TokenNameLPAREN),
+          e.resources().isEmpty() ? null : firstTokenIn(e, TerminalTokens.TokenNameLPAREN),
           resources,
           e.resources().isEmpty() ? null : firstTokenBefore(e.getBody(), TerminalTokens.TokenNameRPAREN),
           convertBlock(e.getBody()),
@@ -1418,6 +1551,51 @@ public class JParser {
         );
       }
     }
+  }
+
+  private List<CaseGroupTreeImpl> convertSwitchStatements(List list) {
+    List<CaseGroupTreeImpl> groups = new ArrayList<>();
+    List<CaseLabelTreeImpl> labels = null;
+    BlockStatementListTreeImpl body = null;
+    for (Object o : list) {
+      if (o instanceof SwitchCase) {
+        if (labels == null) {
+          labels = new ArrayList<>();
+          body = new BlockStatementListTreeImpl(new ArrayList<>());
+        }
+
+        SwitchCase c = (SwitchCase) o;
+
+        List<ExpressionTree> expressions = new ArrayList<>();
+        for (Object oo : c.expressions()) {
+          expressions.add(
+            convertExpression((Expression) oo)
+          );
+        }
+
+        labels.add(new CaseLabelTreeImpl(
+          firstTokenIn(c, c.isDefault() ? TerminalTokens.TokenNamedefault : TerminalTokens.TokenNamecase),
+          expressions,
+          lastTokenIn(c, /* TerminalTokens.TokenNameCOLON or TerminalTokens.TokenNameARROW */ -1)
+        ));
+      } else {
+        if (labels != null) {
+          groups.add(new CaseGroupTreeImpl(
+            labels,
+            body
+          ));
+        }
+        labels = null;
+        addStatementToList((Statement) o, body);
+      }
+    }
+    if (labels != null) {
+      groups.add(new CaseGroupTreeImpl(
+        labels,
+        body
+      ));
+    }
+    return groups;
   }
 
   private ExpressionTree convertExpression(@Nullable Expression node) {
@@ -1525,7 +1703,7 @@ public class JParser {
           TypeTree type = convertType(e.getType());
           while (type.is(Tree.Kind.ARRAY_TYPE)) {
             ArrayTypeTree arrayType = (ArrayTypeTree) type;
-            dimensions.add(new ArrayDimensionTreeImpl(
+            dimensions.add(/* TODO suboptimal */ 0, new ArrayDimensionTreeImpl(
               arrayType.openBracketToken(),
               null,
               arrayType.closeBracketToken()
@@ -1560,7 +1738,8 @@ public class JParser {
         for (int i = 0; i < e.expressions().size(); i++) {
           Expression o = (Expression) e.expressions().get(i);
           initializers.add(convertExpression(o));
-          if (i < e.expressions().size() - 1) {
+          final int commaTokenIndex = firstTokenIndexAfter(o);
+          if (tokenManager.get(commaTokenIndex).tokenType == TerminalTokens.TokenNameCOMMA) {
             initializers.separators().add(firstTokenAfter(o, TerminalTokens.TokenNameCOMMA));
           }
         }
@@ -1643,16 +1822,21 @@ public class JParser {
           );
         }
 
-        return new NewClassTreeImpl(
+        NewClassTreeImpl t = new NewClassTreeImpl(
           arguments,
           classBody
         ).completeWithNewKeyword(
           e.getExpression() == null ? firstTokenIn(e, TerminalTokens.TokenNamenew) : firstTokenAfter(e.getExpression(), TerminalTokens.TokenNamenew)
         ).completeWithIdentifier(
           convertType(e.getType())
-        ).completeWithEnclosingExpression(
-          convertExpression(e.getExpression())
+        ).completeWithTypeArguments(
+          convertTypeArguments(e.typeArguments())
         );
+        if (e.getExpression() != null) {
+          t.completeWithEnclosingExpression(convertExpression(e.getExpression()));
+          t.completeWithDotToken(firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameDOT));
+        }
+        return t;
       }
       case ASTNode.CONDITIONAL_EXPRESSION: {
         ConditionalExpression e = (ConditionalExpression) node;
@@ -1727,13 +1911,14 @@ public class JParser {
             convertSimpleName(e.getName())
           );
         } else {
+          final int firstDotTokenIndex = tokenManager.firstIndexAfter(e.getQualifier(), TerminalTokens.TokenNameDOT);
           outermostSelect = new MemberSelectExpressionTreeImpl(
             new MemberSelectExpressionTreeImpl(
               convertExpression(e.getQualifier()),
-              firstTokenAfter(e.getQualifier(), TerminalTokens.TokenNameDOT),
+              createSyntaxToken(firstDotTokenIndex),
               new IdentifierTreeImpl(firstTokenAfter(e.getQualifier(), TerminalTokens.TokenNamesuper))
             ),
-            null, // FIXME second dot token after qualifier
+            createSyntaxToken(nextTokenIndex(firstDotTokenIndex, TerminalTokens.TokenNameDOT)),
             convertSimpleName(e.getName())
           );
         }
@@ -1782,15 +1967,15 @@ public class JParser {
       case ASTNode.LAMBDA_EXPRESSION: {
         LambdaExpression e = (LambdaExpression) node;
         List<VariableTree> parameters = new ArrayList<>();
-        for (Object o : e.parameters()) {
-          VariableDeclaration e2 = (VariableDeclaration) o;
-          if (e2.getNodeType() == ASTNode.VARIABLE_DECLARATION_FRAGMENT) {
-            parameters.add(new VariableTreeImpl(
-              convertSimpleName(e2.getName())
-            ));
-          } else {
-            parameters.add(
-              createVariable((SingleVariableDeclaration) o)
+        for (int i = 0; i < e.parameters().size(); i++) {
+          VariableDeclaration o = (VariableDeclaration) e.parameters().get(i);
+          VariableTreeImpl t = o.getNodeType() == ASTNode.VARIABLE_DECLARATION_FRAGMENT
+            ? new VariableTreeImpl(convertSimpleName(o.getName()))
+            : createVariable((SingleVariableDeclaration) o);
+          parameters.add(t);
+          if (i < e.parameters().size() - 1) {
+            t.setEndToken(
+              firstTokenAfter(o, TerminalTokens.TokenNameCOMMA)
             );
           }
         }
@@ -1861,6 +2046,18 @@ public class JParser {
           convertSimpleName(e.getName())
         );
         return t;
+      }
+      case ASTNode.SWITCH_EXPRESSION: {
+        SwitchExpression e = (SwitchExpression) node;
+        return new SwitchExpressionTreeImpl(
+          firstTokenIn(e, TerminalTokens.TokenNameswitch),
+          firstTokenIn(e, TerminalTokens.TokenNameLPAREN),
+          convertExpression(e.getExpression()),
+          firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameRPAREN),
+          firstTokenAfter(e.getExpression(), TerminalTokens.TokenNameLBRACE),
+          convertSwitchStatements(e.statements()),
+          lastTokenIn(e, TerminalTokens.TokenNameRBRACE)
+        );
       }
       case ASTNode.NULL_LITERAL: {
         NullLiteral e = (NullLiteral) node;
@@ -1975,32 +2172,42 @@ public class JParser {
         throw new IllegalStateException(ASTNode.nodeClassForType(node.getNodeType()).toString());
       case ASTNode.PRIMITIVE_TYPE: {
         PrimitiveType e = (PrimitiveType) node;
-        // FIXME e.annotations()
-        if (ASSERTIONS && !e.annotations().isEmpty()) {
-          throw new AssertionError();
-        }
+        final JavaTree.PrimitiveTypeTreeImpl t;
         switch (e.getPrimitiveTypeCode().toString()) {
           default:
             throw new IllegalStateException(e.getPrimitiveTypeCode().toString());
           case "byte":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamebyte));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamebyte));
+            break;
           case "short":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNameshort));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNameshort));
+            break;
           case "char":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamechar));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamechar));
+            break;
           case "int":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNameint));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNameint));
+            break;
           case "long":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamelong));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamelong));
+            break;
           case "float":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamefloat));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamefloat));
+            break;
           case "double":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamedouble));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamedouble));
+            break;
           case "boolean":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNameboolean));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNameboolean));
+            break;
           case "void":
-            return new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamevoid));
+            t = new JavaTree.PrimitiveTypeTreeImpl(lastTokenIn(e, TerminalTokens.TokenNamevoid));
+            break;
         }
+        t.complete(
+          convertAnnotations(e.annotations())
+        );
+        return t;
       }
       case ASTNode.SIMPLE_TYPE: {
         SimpleType e = (SimpleType) node;
@@ -2034,18 +2241,17 @@ public class JParser {
       }
       case ASTNode.ARRAY_TYPE: {
         ArrayType e = (ArrayType) node;
-        JavaTree.ArrayTypeTreeImpl t = new JavaTree.ArrayTypeTreeImpl(
-          convertType(e.getElementType()),
-          Collections.emptyList(),
-          firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameLBRACKET),
-          firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameRBRACKET)
-        );
-        for (int i = 0; i < e.dimensions().size() - 1; i++) {
+        TypeTree t = convertType(e.getElementType());
+        int tokenIndex = tokenManager.firstIndexAfter(e.getElementType(), TerminalTokens.TokenNameLBRACKET);
+        for (int i = 0; i < e.dimensions().size(); i++) {
+          if (i > 0) {
+            tokenIndex = nextTokenIndex(tokenIndex, TerminalTokens.TokenNameLBRACKET);
+          }
           t = new JavaTree.ArrayTypeTreeImpl(
             t,
-            Collections.emptyList(), // FIXME annotations
-            firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameLBRACKET),
-            firstTokenAfter(e.getElementType(), TerminalTokens.TokenNameRBRACKET)
+            (List) convertAnnotations(((Dimension) e.dimensions().get(i)).annotations()),
+            createSyntaxToken(tokenIndex),
+            createSyntaxToken(nextTokenIndex(tokenIndex, TerminalTokens.TokenNameRBRACKET))
           );
         }
         return t;
@@ -2088,23 +2294,27 @@ public class JParser {
       }
       case ASTNode.WILDCARD_TYPE: {
         WildcardType e = (WildcardType) node;
-        // FIXME e.annotations()
-        if (ASSERTIONS && !e.annotations().isEmpty()) {
-          throw new AssertionError();
-        }
+        final InternalSyntaxToken questionToken = e.annotations().isEmpty()
+          ? firstTokenIn(e, TerminalTokens.TokenNameQUESTION)
+          : firstTokenAfter((ASTNode) e.annotations().get(e.annotations().size() - 1), TerminalTokens.TokenNameQUESTION);
+        JavaTree.WildcardTreeImpl t;
         if (e.getBound() == null) {
-          return new JavaTree.WildcardTreeImpl(
-            /* TODO first only in absence of annotations */ firstTokenIn(e, TerminalTokens.TokenNameQUESTION)
+          t = new JavaTree.WildcardTreeImpl(
+            questionToken
           );
         } else {
-          return new JavaTree.WildcardTreeImpl(
+          t = new JavaTree.WildcardTreeImpl(
             e.isUpperBound() ? Tree.Kind.EXTENDS_WILDCARD : Tree.Kind.SUPER_WILDCARD,
             e.isUpperBound() ? firstTokenBefore(e.getBound(), TerminalTokens.TokenNameextends) : firstTokenBefore(e.getBound(), TerminalTokens.TokenNamesuper),
             convertType(e.getBound())
           ).complete(
-            /* TODO first only in absence of annotations */ firstTokenIn(e, TerminalTokens.TokenNameQUESTION)
+            questionToken
           );
         }
+        t.complete(
+          convertAnnotations(e.annotations())
+        );
+        return t;
       }
     }
   }

@@ -28,6 +28,7 @@ import java.io.InterruptedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Before;
@@ -65,6 +66,7 @@ import org.sonar.sslr.grammar.GrammarRuleKey;
 import org.sonar.sslr.grammar.LexerlessGrammarBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -113,7 +115,6 @@ public class JavaAstScannerTest {
     JavaAstScanner.scanSingleFileForTests(TestUtils.emptyInputFile(filename), new VisitorsBridge(null));
   }
 
-  @org.junit.Ignore
   @Test
   public void should_not_fail_whole_analysis_upon_parse_error_and_notify_audit_listeners() {
     FakeAuditListener listener = spy(new FakeAuditListener());
@@ -207,19 +208,20 @@ public class JavaAstScannerTest {
   @org.junit.Ignore
   @Test
   public void should_propagate_SOError() {
-    thrown.expect(StackOverflowError.class);
     JavaAstScanner scanner = defaultJavaAstScanner();
     scanner.setVisitorBridge(new VisitorsBridge(new CheckThrowingSOError()));
-    scanner.scan(Collections.singletonList(TestUtils.inputFile("src/test/resources/AstScannerNoParseError.txt")));
-
-    assertThat(logTester.logs(LoggerLevel.ERROR)).hasSize(1);
-    assertThat(logTester.logs(LoggerLevel.ERROR).get(0))
-      .startsWith("A stack overflow error occured while analyzing file")
-      .contains("java.lang.StackOverflowError: boom")
-      .contains("at org.sonar.java.ast.JavaAstScannerTest");
+    try {
+      scanner.scan(Collections.singletonList(TestUtils.inputFile("src/test/resources/AstScannerNoParseError.txt")));
+      fail("Should have triggered a StackOverflowError and not reach this point.");
+    } catch (Error e) {
+      assertThat(e).isInstanceOf(StackOverflowError.class);
+      assertThat(e.getMessage()).isEqualTo("boom");
+      List<String> errorLogs = logTester.logs(LoggerLevel.ERROR);
+      assertThat(errorLogs).hasSize(1);
+      assertThat(errorLogs.get(0)).startsWith("A stack overflow error occurred while analyzing file");
+    }
   }
 
-  @org.junit.Ignore
   @Test
   public void should_report_analysis_error_in_sonarLint_context_withSQ_6_0() {
     JavaAstScanner scanner = defaultJavaAstScanner();

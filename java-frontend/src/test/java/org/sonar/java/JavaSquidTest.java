@@ -88,7 +88,7 @@ public class JavaSquidTest {
 
   }
 
-  @org.junit.Ignore
+  @org.junit.Ignore("different line in message")
   @Test
   public void verify_analysis_errors_are_collected_on_parse_error() throws Exception {
     String code = "/***/\nclass A {\n String foo() {\n  return foo();\n }\n";
@@ -135,7 +135,7 @@ public class JavaSquidTest {
     return sonarComponents;
   }
 
-  @org.junit.Ignore
+  @org.junit.Ignore("different column in message")
   @Test
   public void parsing_errors_should_be_reported_to_sonarlint() throws Exception {
     SensorContextTester context = setupAnalysisError("class A {");

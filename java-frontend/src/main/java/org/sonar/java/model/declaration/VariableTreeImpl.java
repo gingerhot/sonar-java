@@ -46,9 +46,9 @@ public class VariableTreeImpl extends JavaTree implements VariableTree {
   private TypeTree type;
   private IdentifierTree simpleName;
   @Nullable
-  public SyntaxToken equalToken;
+  private SyntaxToken equalToken;
   @Nullable
-  public ExpressionTree initializer;
+  private ExpressionTree initializer;
   @Nullable
   private SyntaxToken endToken;
 

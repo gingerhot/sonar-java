@@ -23,6 +23,14 @@ pipeline {
     }
     stage('QA') {
       parallel {
+        stage('sanity/linux') {
+          agent {
+            label 'linux'
+          }
+          steps {
+            runBuildWithProfile("sanity")
+          }
+        }
         stage('plugin/DOGFOOD/linux') {
           agent {
             label 'linux'
@@ -40,22 +48,18 @@ pipeline {
           }
         }
         stage('ruling/LATEST_RELEASE[7.9]/linux') {
-          when { expression { return params.GITHUB_BRANCH.equals('master') } }
           agent {
             label 'linux'
           }
           steps {
-            runBuildWithProfile("sanity")
             runITs("ruling", "LATEST_RELEASE[7.9]")
           }
         }
         stage('ruling/LATEST_RELEASE[7.9]/windows') {
-          when { expression { return params.GITHUB_BRANCH.contains('PULLREQUEST-') } }
           agent {
             label 'windows'
           }
           steps {
-            runBuildWithProfile("sanity")
             runITs("ruling", "LATEST_RELEASE[7.9]")
           }
         }
@@ -68,7 +72,6 @@ pipeline {
           }
         }
         stage('QA-OS/windows') {
-          when { expression { return params.GITHUB_BRANCH.equals('master') } }
           agent {
             label 'windows'
           }
@@ -77,7 +80,6 @@ pipeline {
           }
         }
         stage('QA-OS/macOS') {
-          when { expression { return params.GITHUB_BRANCH.equals('master') } }
           agent {
             label 'macosx'
           }
@@ -122,7 +124,6 @@ def runITs(TEST, SQ_VERSION) {
     }
   }
 }
-
 
 def runQAOS() {
   withMaven(maven: MAVEN_TOOL) {

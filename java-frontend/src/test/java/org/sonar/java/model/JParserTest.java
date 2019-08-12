@@ -19,6 +19,7 @@
  */
 package org.sonar.java.model;
 
+import com.sonar.sslr.api.RecognitionException;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
 import org.sonar.java.ast.parser.JavaParser;
@@ -27,7 +28,10 @@ import org.sonar.java.resolve.SemanticModel;
 import org.sonar.plugins.java.api.tree.BlockTree;
 import org.sonar.plugins.java.api.tree.ClassTree;
 import org.sonar.plugins.java.api.tree.CompilationUnitTree;
+import org.sonar.plugins.java.api.tree.ExpressionStatementTree;
+import org.sonar.plugins.java.api.tree.MethodInvocationTree;
 import org.sonar.plugins.java.api.tree.MethodTree;
+import org.sonar.plugins.java.api.tree.ParameterizedTypeTree;
 import org.sonar.plugins.java.api.tree.Tree;
 import org.sonar.plugins.java.api.tree.VariableTree;
 
@@ -42,6 +46,33 @@ import static org.junit.Assert.fail;
  * TODO test shared identifiers in enum
  */
 public class JParserTest {
+
+  @Test
+  public void should_throw_RecognitionException_in_case_of_syntax_error() {
+    try { // Note that without check for syntax errors will cause IndexOutOfBoundsException
+      test("class C");
+      fail("exception expected");
+    } catch (RecognitionException e) {
+      assertEquals(1, e.getLine());
+      assertEquals("Parse error at line 1 column 6: Syntax error, insert \"ClassBody\" to complete CompilationUnit", e.getMessage());
+    }
+    try { // Note that syntax tree will be correct even in presence of this syntax error
+      test("import a; ; import b;");
+      fail("exception expected");
+    } catch (RecognitionException e) {
+      assertEquals("Parse error at line 1 column 10: Syntax error on token \";\", delete this token", e.getMessage());
+    }
+  }
+
+  @Test
+  public void exception_in_lexer() {
+    try { // FIXME should also lead to RecognitionException
+      testExpression("''");
+      fail("exception expected");
+    } catch (RuntimeException e) {
+      assertEquals("org.eclipse.jdt.core.compiler.InvalidInputException: Invalid_Character_Constant", e.getMessage());
+    }
+  }
 
   @org.junit.Ignore
   @Test
@@ -62,14 +93,6 @@ public class JParserTest {
       fail("exception expected");
     } catch (IndexOutOfBoundsException ignore) {
     }
-
-    try {
-      // TODO without check for syntax errors will cause IndexOutOfBoundsException
-      JParser.parse("class C");
-      fail("exception expected");
-    } catch (UnsupportedOperationException e) {
-      assertEquals("line 1: Syntax error, insert \"ClassBody\" to complete CompilationUnit", e.getMessage());
-    }
   }
 
   @Test
@@ -77,6 +100,15 @@ public class JParserTest {
     test("class C { void m(String... s) { m(new String[] {}); /* comment */ m(new String[] {}); } }");
     test("abstract class C { abstract int method(); }");
     test("class C { int f; }");
+  }
+
+  @org.junit.Ignore
+  @Test
+  public void eof() {
+    CompilationUnitTree t = test("");
+    assertEquals("", t.eofToken().text());
+    assertEquals(1, t.eofToken().line());
+    assertEquals(0, t.eofToken().column());
   }
 
   /**
@@ -112,17 +144,27 @@ public class JParserTest {
   }
 
   @Test
+  public void type_arguments() {
+    test("class C<P> {"
+      + "  void m() {"
+      + "    this.<C   > m();"
+      + "    this.<C<C>> m();"
+      + "  }"
+      + "}");
+  }
+
+  @Test
+  public void type_parameters() {
+    test("class C<P> {"
+      + "  <P             > void m1() {}"
+      + "  <P extends C<C>> void m2() {}"
+      + "}");
+  }
+
+  @Test
   public void empty_declarations() {
     // after each import declaration
     test("import i; ;");
-
-    try {
-      test("import a; ; import b;");
-      fail("exception expected");
-    } catch (UnsupportedOperationException e) {
-      // TODO syntax tree is actually correct even in presence of syntax error
-      assertEquals("line 1: Syntax error on token \";\", delete this token", e.getMessage());
-    }
 
     // before first and after each body declaration
     test("class C { ; void m(); ; }");
@@ -142,9 +184,17 @@ public class JParserTest {
   }
 
   @Test
+  public void declaration_class() {
+    test("class A extends B implements I1, I2 { }");
+  }
+
+  @Test
   public void declaration_enum() {
     test("enum E { C1 , C2 }");
     test("enum E { C1 , C2 ; }");
+
+    test("enum E { C() }");
+    test("enum E { C { } }");
   }
 
   @Test
@@ -161,25 +211,17 @@ public class JParserTest {
 
   @Test
   public void statement_for() {
-    test("class C { void m() { for ( int i , j ; ; ) ; } }");
-    test("class C { void m() { for ( int i = 0, j = 0 ; ; ) ; } }");
+    testStatement("for ( ; ; ) ;");
+    testStatement("for (int i = 0, j = 0 ; ; i++, j++) ;");
   }
 
   @Test
   public void statement_switch() {
     test("class C { void m() { switch (0) { case 0: } } }");
 
-    // Java 12
-    try {
-      test("class C { void m() { switch (0) { case 0, 1: } } }");
-      fail("expected exception");
-    } catch (ComparisonFailure ignore) {
-    }
-    try {
-      test("class C { void m() { switch (0) { case 0, 1 -> { break; } } } }");
-      fail("expected exception");
-    } catch (IndexOutOfBoundsException ignore) {
-    }
+    // Java 12 preview feature
+    test("class C { void m() { switch (0) { case 0, 1: } } }");
+    test("class C { void m() { switch (0) { case 0, 1 -> { break; } } } }");
   }
 
   @Test
@@ -222,10 +264,21 @@ public class JParserTest {
     testExpression("C<T, T>::new");
   }
 
-  @org.junit.Ignore
   @Test
   public void expression_super_method_invocation() {
     test("class C { class Inner { Inner() { C.super.toString(); } } }");
+  }
+
+  @Test
+  public void expression_lambda() {
+    testExpression("lambda( (p1, p2) -> {} )");
+  }
+
+  @Test
+  public void expression_switch() {
+    // Java 12 preview feature
+    testExpression("switch (0) { case 0 -> 0; }");
+    testExpression("switch (0) { case 0: break 0; }");
   }
 
   @Test
@@ -238,21 +291,48 @@ public class JParserTest {
     testExpression("new a. @Annotation d()");
   }
 
+  @Test
+  public void module() {
+    testModule("module a { }");
+    testModule("module a { requires static transitive b ; }");
+    try { // bug in ECJ
+      testModule("module a { requires transitive ; }");
+      fail("exception expected");
+    } catch (ComparisonFailure expected) {
+    }
+    testModule("module a { exports b to c , d ; }");
+    testModule("module a { opens b to c , d ; }");
+    testModule("module a { uses b ; }");
+    testModule("module a { provides b with c , d ; }");
+  }
+
+  private void testStatement(String statement) {
+    test("class C { void m() { " + statement + " } }");
+  }
+
   private void testExpression(String expression) {
     test("class C { Object m() { return " + expression + " ; } }");
   }
 
   private static CompilationUnitTree test(String source) {
+    return test("File.java", source);
+  }
+
+  private static void testModule(String source) {
+    test("module-info.java", source);
+  }
+
+  private static CompilationUnitTree test(String unitName, String source) {
     TreeFormatter formatter = new TreeFormatter();
     formatter.showTokens = true;
+
+    CompilationUnitTree newTree = JParser.parse("12", unitName, source, Collections.emptyList());
+    String actual = formatter.toString(newTree);
 
     CompilationUnitTree oldTree = (CompilationUnitTree) JavaParser.createParser().parse(source);
     SemanticModel.createFor(oldTree, new SquidClassLoader(Collections.emptyList()));
     String expected = formatter.toString(oldTree);
     System.out.println(expected);
-
-    CompilationUnitTree newTree = JParser.parse(source);
-    String actual = formatter.toString(newTree);
 
     assertEquals(expected, actual);
 
