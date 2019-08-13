@@ -89,12 +89,10 @@ public class JavaSquid {
     //AstScanner for main files
     ActionParser<Tree> parser = JavaParser.createParser();
     astScanner = new JavaAstScanner(parser, sonarComponents);
-    astScanner.configure(javaVersion, classpath); // TODO HACK
     astScanner.setVisitorBridge(createVisitorBridge(codeVisitors, classpath, javaVersion, sonarComponents, SymbolicExecutionMode.getMode(visitors, xFileEnabled)));
 
     //AstScanner for test files
     astScannerForTests = new JavaAstScanner(parser, sonarComponents);
-    astScannerForTests.configure(javaVersion, testClasspath); // TODO HACK
     astScannerForTests.setVisitorBridge(createVisitorBridge(testCodeVisitors, testClasspath, javaVersion, sonarComponents, SymbolicExecutionMode.DISABLED));
 
   }

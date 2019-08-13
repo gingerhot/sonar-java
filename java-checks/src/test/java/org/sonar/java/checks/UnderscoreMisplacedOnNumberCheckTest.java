@@ -29,6 +29,7 @@ public class UnderscoreMisplacedOnNumberCheckTest {
     JavaCheckVerifier.verify("src/test/files/checks/UnderscoreMisplacedOnNumberCheck.java", new UnderscoreMisplacedOnNumberCheck());
   }
 
+  @org.junit.Ignore("line 5: Underscores can only be used with source level 1.7 or greater")
   @Test
   public void test_java_6() {
     JavaCheckVerifier.verifyNoIssue("src/test/files/checks/UnderscoreMisplacedOnNumberCheck.java", new UnderscoreMisplacedOnNumberCheck(), 6);
