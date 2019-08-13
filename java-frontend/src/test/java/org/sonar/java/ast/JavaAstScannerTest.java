@@ -151,7 +151,6 @@ public class JavaAstScannerTest {
     JavaAstScanner.scanSingleFileForTests(inputFile, new VisitorsBridge(new CheckThrowingException(new RecognitionException(42, "interrupted", new InterruptedIOException()))));
   }
 
-  @org.junit.Ignore
   @Test
   public void should_swallow_log_and_report_checks_exceptions() {
     JavaAstScanner scanner = new JavaAstScanner(JavaParser.createParser(), null);
@@ -195,7 +194,6 @@ public class JavaAstScannerTest {
     assertThat(sonarComponent.analysisErrors.get(0).getKind()).isSameAs(AnalysisError.Kind.SE_ERROR);
   }
 
-  @org.junit.Ignore
   @Test
   public void should_propagate_SOError() {
     JavaAstScanner scanner = new JavaAstScanner(JavaParser.createParser(), null);
