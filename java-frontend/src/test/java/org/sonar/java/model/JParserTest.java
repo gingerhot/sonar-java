@@ -295,11 +295,11 @@ public class JParserTest {
     testModule("module a { provides b with c , d ; }");
   }
 
-  private void testStatement(String statement) {
+  private static void testStatement(String statement) {
     test("class C { void m() { " + statement + " } }");
   }
 
-  private void testExpression(String expression) {
+  private static void testExpression(String expression) {
     test("class C { Object m() { return " + expression + " ; } }");
   }
 
