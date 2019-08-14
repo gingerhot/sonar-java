@@ -163,11 +163,6 @@ public class RulesSanityTest {
   }
 
   private static boolean isNotParsingErrorFile(String filename) {
-    if (filename.endsWith("/src/test/files/checks/ConstantMethodCheck.java")
-      || filename.endsWith("src/test/files/checks/naming/KeywordAsIdentifierCheck.java")
-      || filename.endsWith("src/test/files/checks/UseSwitchExpressionCheck.java")) {
-      return false; // FIXME hack
-    }
     return !(filename.contains("ParsingError") || filename.contains("ParseError"));
   }
 
