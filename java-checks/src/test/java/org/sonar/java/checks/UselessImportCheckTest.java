@@ -30,7 +30,6 @@ public class UselessImportCheckTest {
     JavaCheckVerifier.verify("src/test/files/checks/UselessImportCheck/WithPackage.java", new UselessImportCheck());
   }
 
-  @org.junit.Ignore("line 16: Syntax error on token \";\", delete this token" + "type annotations")
   @Test
   public void no_semantic() {
     JavaCheckVerifier.verifyNoIssueWithoutSemantic("src/test/files/checks/UselessImportCheck/NoSemanticWithPackage.java", new UselessImportCheck());
