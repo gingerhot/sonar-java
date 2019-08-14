@@ -34,7 +34,6 @@ import java.util.List;
 
 class TreeFormatter {
 
-  // TODO separators
   boolean showTokens = true;
 
   // FIXME to compare semantic it also should be computed for newTree
@@ -76,10 +75,16 @@ class TreeFormatter {
     out.append(node.kind());
 
     if (node.is(Tree.Kind.TRIVIA)) {
-      out.append(' ').append(((SyntaxTrivia) node).comment());
+      SyntaxTrivia trivia = (SyntaxTrivia) node;
+      out.append(' ').append(trivia.startLine()).append(':').append(trivia.column());
+      out.append(' ').append(trivia.comment());
 
     } else if (node.is(Tree.Kind.TOKEN)) {
-      out.append(' ').append(((SyntaxToken) node).text());
+      SyntaxToken token = (SyntaxToken) node;
+      if (! /* TODO eof with incorrect position */ "".equals(token.text())) {
+        out.append(' ').append(token.line()).append(':').append(token.column());
+      }
+      out.append(' ').append(token.text());
 
     } else if (node.is(Tree.Kind.IDENTIFIER)) {
       out.append(" name=").append(((IdentifierTree) node).name());
@@ -132,7 +137,6 @@ class TreeFormatter {
       iterator,
       child -> child != null
         && /* not empty list: */ !(child.is(Tree.Kind.LIST) && ((List) child).isEmpty())
-//        && /* not comma */ !(child.is(Tree.Kind.TOKEN) && ",".equals(((SyntaxToken) child).text()))
     );
   }
 

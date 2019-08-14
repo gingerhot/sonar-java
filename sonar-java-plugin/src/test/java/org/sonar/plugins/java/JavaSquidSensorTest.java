@@ -146,7 +146,7 @@ public class JavaSquidSensorTest {
     return sonarComponents;
   }
 
-  @org.junit.Ignore
+  @org.junit.Ignore("different position")
   @Test
   public void verify_analysis_errors_are_collected_on_parse_error() throws Exception {
     SensorContextTester context = createParseErrorContext();
@@ -203,7 +203,6 @@ public class JavaSquidSensorTest {
     assertThat(context.<String>measure("projectKey", "sonarjava_feedback")).isNull();
   }
 
-  @org.junit.Ignore
   @Test
   public void feedbackShouldNotBeFedIfNotSonarCloudHost() throws IOException {
     SensorContextTester context = createParseErrorContext();

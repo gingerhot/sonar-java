@@ -87,13 +87,6 @@ public class JavaAstScanner {
   }
 
 
-  private List<File> classpath = Collections.emptyList();
-  private String version = "11";
-  public void configure(JavaVersion version, List<File> classpath) {
-    this.version = Integer.toString(version.asInt() < 0 ? 11 : version.asInt());
-    this.classpath = classpath;
-  }
-
   private void simpleScan(InputFile inputFile) {
     visitor.setCurrentFile(inputFile);
     try {
@@ -102,7 +95,18 @@ public class JavaAstScanner {
       if (!JParser.ENABLED) {
         ast = parser.parse(fileContent);
       } else {
-        ast = JParser.parse(version, inputFile.filename(), fileContent, classpath);
+        final String version;
+        if (visitor.getJavaVersion() == null || visitor.getJavaVersion().asInt() < 0) {
+          version = /* default */ "12";
+        } else {
+          version = Integer.toString(visitor.getJavaVersion().asInt());
+        }
+        ast = JParser.parse(
+          version,
+          inputFile.filename(),
+          fileContent,
+          Collections.emptyList()
+        );
       }
       visitor.visitFile(ast);
     } catch (RecognitionException e) {
