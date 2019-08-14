@@ -97,7 +97,7 @@ public class JavaAstScanner {
       } else {
         final String version;
         if (visitor.getJavaVersion() == null || visitor.getJavaVersion().asInt() < 0) {
-          version = /* default */ "11";
+          version = /* default */ "12";
         } else {
           version = Integer.toString(visitor.getJavaVersion().asInt());
         }
