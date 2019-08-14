@@ -164,7 +164,6 @@ public class SonarLintTest {
       tuple("squid:S1481", 4, inputFile.getPath(), "MINOR"));
   }
 
-  @org.junit.Ignore
   @Test
   public void parse_error_should_report_analysis_error() throws Exception {
     ClientInputFile inputFile = prepareInputFile("ParseError.java", "class ParseError {", false);

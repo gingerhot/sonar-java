@@ -230,7 +230,7 @@ public class JavaTest {
     assertThat(getMeasureAsInteger("org.example:example-scanner", "violations")).isEqualTo(1);
   }
 
-  @org.junit.Ignore
+  @org.junit.Ignore("different position")
   @Test
   public void collect_feedback_on_server() {
     SonarScanner scan = SonarScanner.create(TestUtils.projectDir("java-parse-error"))
