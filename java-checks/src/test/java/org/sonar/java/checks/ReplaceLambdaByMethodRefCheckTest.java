@@ -26,7 +26,6 @@ public class ReplaceLambdaByMethodRefCheckTest {
 
   private static final String FILENAME = "src/test/files/checks/ReplaceLambdaByMethodRefCheck.java";
 
-  @org.junit.Ignore("line 82: Abstract methods do not specify a body")
   @Test
   public void java8() {
     JavaCheckVerifier.verify(FILENAME, new ReplaceLambdaByMethodRefCheck(), 8);
