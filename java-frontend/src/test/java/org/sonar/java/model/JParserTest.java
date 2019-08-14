@@ -65,24 +65,13 @@ public class JParserTest {
   }
 
   @Test
-  public void exception_in_lexer() {
-    try { // FIXME should also lead to RecognitionException
+  public void should_throw_RecognitionException_in_case_of_lexical_error() {
+    try { // Note that without check for errors will cause InvalidInputException
       testExpression("''");
       fail("exception expected");
     } catch (RuntimeException e) {
-      assertEquals("org.eclipse.jdt.core.compiler.InvalidInputException: Invalid_Character_Constant", e.getMessage());
+      assertEquals("Parse error at line 1 column 30: Invalid character constant", e.getMessage());
     }
-  }
-
-  @org.junit.Ignore
-  @Test
-  public void invalid() {
-    // TODO in CompareToResultTestCheckTest
-    testExpression("(c++)++");
-    // TODO in ForLoopIncrementSignCheckTest
-    testExpression("(-i)++");
-    // TODO in SystemExitCalledCheckTest
-    testExpression("m()++");
   }
 
   @Test

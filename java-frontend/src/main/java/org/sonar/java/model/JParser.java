@@ -288,11 +288,6 @@ public class JParser {
       String message = "line " + problem.getSourceLineNumber() + ": " + problem.getMessage();
       System.err.println(message);
 
-      // TODO more for problem.isError()
-      if (!problem.getMessage().contains("Syntax error")) {
-        continue;
-      }
-
       final int line = problem.getSourceLineNumber();
       final int column = astNode.getColumnNumber(problem.getSourceStart());
       throw new RecognitionException(line, "Parse error at line " + line + " column " + column + ": " + problem.getMessage());
