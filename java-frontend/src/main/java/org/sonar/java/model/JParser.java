@@ -1114,7 +1114,7 @@ public class JParser {
 
   private BlockTreeImpl convertBlock(@Nullable Block e) {
     if (e == null) {
-      // TODO e.g. abstract method or finally
+      // e.g. abstract method or finally
       return null;
     }
     List<StatementTree> statements = new ArrayList<>();
@@ -1161,7 +1161,7 @@ public class JParser {
 
   private StatementTree convertStatement(@Nullable Statement node) {
     if (node == null) {
-      // TODO e.g. else-statement
+      // e.g. else-statement
       return null;
     }
     switch (node.getNodeType()) {
@@ -2102,7 +2102,7 @@ public class JParser {
 
   private TypeTree convertType(@Nullable Type node) {
     if (node == null) {
-      // TODO when null?
+      // e.g. return type of constructor
       return null;
     }
     switch (node.getNodeType()) {
