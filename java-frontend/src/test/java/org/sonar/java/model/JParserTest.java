@@ -81,13 +81,6 @@ public class JParserTest {
   }
 
   @Test
-  public void wip() {
-    test("class C { void m(String... s) { m(new String[] {}); /* comment */ m(new String[] {}); } }");
-    test("abstract class C { abstract int method(); }");
-    test("class C { int f; }");
-  }
-
-  @Test
   public void eof() {
     {
       CompilationUnitTree t = test("");
