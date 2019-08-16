@@ -81,9 +81,7 @@ class TreeFormatter {
 
     } else if (node.is(Tree.Kind.TOKEN)) {
       SyntaxToken token = (SyntaxToken) node;
-      if (! /* TODO eof with incorrect position */ "".equals(token.text())) {
-        out.append(' ').append(token.line()).append(':').append(token.column());
-      }
+      out.append(' ').append(token.line()).append(':').append(token.column());
       out.append(' ').append(token.text());
 
     } else if (node.is(Tree.Kind.IDENTIFIER)) {

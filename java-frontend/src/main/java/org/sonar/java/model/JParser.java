@@ -480,15 +480,32 @@ public class JParser {
     }
 
     t = tokenManager.get(tokenIndex);
+
+    if (t.tokenType == TerminalTokens.TokenNameEOF) {
+      if (t.originalStart == 0) {
+        return new InternalSyntaxToken(1, 0, "", trivias, 0, 0, true);
+      }
+      final int position = t.originalStart - 1;
+      final char c = tokenManager.getSource().charAt(position);
+      int line = compilationUnit.getLineNumber(position);
+      int column = compilationUnit.getColumnNumber(position);
+      if (c == '\n' || c == '\r') {
+        line++;
+        column = 0;
+      } else {
+        column++;
+      }
+      return new InternalSyntaxToken(line, column, "", trivias, 0, 0, true);
+    }
+
     return new InternalSyntaxToken(
-      // FIXME line and column are incorrect for EOF token
       compilationUnit.getLineNumber(t.originalStart),
       compilationUnit.getColumnNumber(t.originalStart),
-      t.tokenType == TerminalTokens.TokenNameEOF ? "" : t.toString(tokenManager.getSource()),
+      t.toString(tokenManager.getSource()),
       trivias,
       0,
       0,
-      t.tokenType == TerminalTokens.TokenNameEOF
+      false
     );
   }
 

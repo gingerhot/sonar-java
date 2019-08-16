@@ -91,13 +91,20 @@ public class JParserTest {
     test("class C { int f; }");
   }
 
-  @org.junit.Ignore
   @Test
   public void eof() {
-    CompilationUnitTree t = test("");
-    assertEquals("", t.eofToken().text());
-    assertEquals(1, t.eofToken().line());
-    assertEquals(0, t.eofToken().column());
+    {
+      CompilationUnitTree t = test("");
+      assertEquals("", t.eofToken().text());
+      assertEquals(1, t.eofToken().line());
+      assertEquals(0, t.eofToken().column());
+    }
+    {
+      CompilationUnitTree t = test(" \n");
+      assertEquals("", t.eofToken().text());
+      assertEquals(2, t.eofToken().line());
+      assertEquals(0, t.eofToken().column());
+    }
   }
 
   /**
