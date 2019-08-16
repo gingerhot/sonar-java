@@ -230,7 +230,6 @@ public class JavaTest {
     assertThat(getMeasureAsInteger("org.example:example-scanner", "violations")).isEqualTo(1);
   }
 
-  @org.junit.Ignore("different position")
   @Test
   public void collect_feedback_on_server() {
     SonarScanner scan = SonarScanner.create(TestUtils.projectDir("java-parse-error"))
@@ -243,6 +242,6 @@ public class JavaTest {
 
     Measures.Measure sonarjava_feedback = getMeasure("java-parse-error", "sonarjava_feedback");
     assertThat(sonarjava_feedback).isNotNull();
-    assertThat(sonarjava_feedback.getValue()).startsWith("[{\"message\":\"Parse error at line 5 column 1");
+    assertThat(sonarjava_feedback.getValue()).startsWith("[{\"message\":\"Parse error at line 4 column 0");
   }
 }

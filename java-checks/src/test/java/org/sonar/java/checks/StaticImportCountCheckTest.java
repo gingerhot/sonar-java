@@ -48,7 +48,6 @@ public class StaticImportCountCheckTest {
     JavaCheckVerifier.verifyNoIssue(TEST_FILES_DIR + "MixedStandardAndStaticImportsCompliant.java", check);
   }
 
-  @org.junit.Ignore("line 3: Syntax error on token(s), misplaced construct(s)")
   @Test
   public void cu_with_custom_threshold_noncompliant() {
     StaticImportCountCheck check = new StaticImportCountCheck();

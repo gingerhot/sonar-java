@@ -52,6 +52,7 @@ public class JParserTest {
       assertEquals("Parse error at line 1 column 6: Syntax error, insert \"ClassBody\" to complete CompilationUnit", e.getMessage());
     }
     try { // Note that syntax tree will be correct even in presence of this syntax error
+      // javac doesn't produce error in this case, however this is not allowed according to JLS 12
       test("import a; ; import b;");
       fail("exception expected");
     } catch (RecognitionException e) {
