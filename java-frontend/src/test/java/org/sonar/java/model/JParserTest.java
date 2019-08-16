@@ -28,10 +28,8 @@ import org.sonar.java.resolve.SemanticModel;
 import org.sonar.plugins.java.api.tree.BlockTree;
 import org.sonar.plugins.java.api.tree.ClassTree;
 import org.sonar.plugins.java.api.tree.CompilationUnitTree;
-import org.sonar.plugins.java.api.tree.ExpressionStatementTree;
-import org.sonar.plugins.java.api.tree.MethodInvocationTree;
+import org.sonar.plugins.java.api.tree.EnumConstantTree;
 import org.sonar.plugins.java.api.tree.MethodTree;
-import org.sonar.plugins.java.api.tree.ParameterizedTypeTree;
 import org.sonar.plugins.java.api.tree.Tree;
 import org.sonar.plugins.java.api.tree.VariableTree;
 
@@ -42,9 +40,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
-/**
- * TODO test shared identifiers in enum
- */
 public class JParserTest {
 
   @Test
@@ -57,6 +52,7 @@ public class JParserTest {
       assertEquals("Parse error at line 1 column 6: Syntax error, insert \"ClassBody\" to complete CompilationUnit", e.getMessage());
     }
     try { // Note that syntax tree will be correct even in presence of this syntax error
+      // javac doesn't produce error in this case, however this is not allowed according to JLS 12
       test("import a; ; import b;");
       fail("exception expected");
     } catch (RecognitionException e) {
@@ -85,19 +81,19 @@ public class JParserTest {
   }
 
   @Test
-  public void wip() {
-    test("class C { void m(String... s) { m(new String[] {}); /* comment */ m(new String[] {}); } }");
-    test("abstract class C { abstract int method(); }");
-    test("class C { int f; }");
-  }
-
-  @org.junit.Ignore
-  @Test
   public void eof() {
-    CompilationUnitTree t = test("");
-    assertEquals("", t.eofToken().text());
-    assertEquals(1, t.eofToken().line());
-    assertEquals(0, t.eofToken().column());
+    {
+      CompilationUnitTree t = test("");
+      assertEquals("", t.eofToken().text());
+      assertEquals(1, t.eofToken().line());
+      assertEquals(0, t.eofToken().column());
+    }
+    {
+      CompilationUnitTree t = test(" \n");
+      assertEquals("", t.eofToken().text());
+      assertEquals(2, t.eofToken().line());
+      assertEquals(0, t.eofToken().column());
+    }
   }
 
   /**
@@ -107,7 +103,7 @@ public class JParserTest {
   public void extended_operands() {
     test("class C { void m() { m( 1 - 2 - 3 ); } }");
 
-    // TODO no extendedOperands in case of parenthesises ?
+    // no extendedOperands in case of parentheses:
     test("class C { void m() { m( (1 - 2) - 3 ); } }");
     test("class C { void m() { m( 1 - (2 - 3) ); } }");
   }
@@ -184,6 +180,14 @@ public class JParserTest {
 
     test("enum E { C() }");
     test("enum E { C { } }");
+
+    CompilationUnitTree cu = test("enum E { C }");
+    ClassTree t = (ClassTree) cu.types().get(0);
+    EnumConstantTree c = (EnumConstantTree) t.members().get(0);
+    assertSame(
+      c.simpleName(),
+      c.initializer().identifier()
+    );
   }
 
   @Test

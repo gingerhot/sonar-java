@@ -24,7 +24,6 @@ import org.sonar.java.checks.verifier.JavaCheckVerifier;
 
 public class UselessImportCheckTest {
 
-  @org.junit.Ignore("line 21: Syntax error on token \";\", delete this token")
   @Test
   public void detected_with_package() {
     JavaCheckVerifier.verify("src/test/files/checks/UselessImportCheck/WithPackage.java", new UselessImportCheck());
