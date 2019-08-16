@@ -36,21 +36,13 @@ class TreeFormatter {
 
   boolean showTokens = true;
 
-  // FIXME to compare semantic it also should be computed for newTree
-  boolean showSemantic = false;
-
   /**
    * Only for testing.
    */
   @Deprecated
   public static void compare(CompilationUnitTree newTree, CompilationUnitTree oldTree) {
-//    SemanticModel.createFor(oldTree, new SquidClassLoader(Collections.emptyList()));
-
     String actual = new TreeFormatter().toString(newTree);
     String expected = new TreeFormatter().toString(oldTree);
-
-//    System.out.println(expected);
-
     if (!expected.equals(actual)) {
       try {
         throw (AssertionError) Class.forName("org.junit.ComparisonFailure")
@@ -88,10 +80,6 @@ class TreeFormatter {
       out.append(" name=").append(((IdentifierTree) node).name());
     }
 
-    if (showSemantic) {
-      appendSemantic(out, node);
-    }
-
     out.append('\n');
     indent += 2;
 
@@ -102,23 +90,6 @@ class TreeFormatter {
         continue;
       }
       append(out, indent, child);
-    }
-  }
-
-  private void appendSemantic(StringBuilder out, Tree node) {
-    if (node.is(Tree.Kind.VARIABLE)) {
-      VariableTreeImpl n = (VariableTreeImpl) node;
-      out.append(" symbol=").append(n.symbol() == null ? "null" : n.symbol().name());
-    }
-
-    if (node.is(Tree.Kind.IDENTIFIER)) {
-      IdentifierTree n = (IdentifierTree) node;
-      out.append(" symbol.name=").append(n.symbol().name());
-    }
-
-    if (node.is(Tree.Kind.METHOD_INVOCATION)) {
-      MethodInvocationTree n = (MethodInvocationTree) node;
-      out.append(" symbol.name=").append(n.symbol().name());
     }
   }
 

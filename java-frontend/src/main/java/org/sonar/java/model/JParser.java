@@ -43,7 +43,6 @@ import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.Comment;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
@@ -136,7 +135,6 @@ import org.sonar.java.ast.parser.BlockStatementListTreeImpl;
 import org.sonar.java.ast.parser.BoundListTreeImpl;
 import org.sonar.java.ast.parser.FormalParametersListTreeImpl;
 import org.sonar.java.ast.parser.InitializerListTreeImpl;
-import org.sonar.java.ast.parser.JavaParser;
 import org.sonar.java.ast.parser.ModuleNameTreeImpl;
 import org.sonar.java.ast.parser.QualifiedIdentifierListTreeImpl;
 import org.sonar.java.ast.parser.ResourceListTreeImpl;
@@ -201,7 +199,6 @@ import org.sonar.java.model.statement.WhileStatementTreeImpl;
 import org.sonar.plugins.java.api.tree.AnnotationTree;
 import org.sonar.plugins.java.api.tree.ArrayDimensionTree;
 import org.sonar.plugins.java.api.tree.ArrayTypeTree;
-import org.sonar.plugins.java.api.tree.BaseTreeVisitor;
 import org.sonar.plugins.java.api.tree.CatchTree;
 import org.sonar.plugins.java.api.tree.CompilationUnitTree;
 import org.sonar.plugins.java.api.tree.ExpressionTree;
@@ -210,10 +207,8 @@ import org.sonar.plugins.java.api.tree.ImportClauseTree;
 import org.sonar.plugins.java.api.tree.ModifierTree;
 import org.sonar.plugins.java.api.tree.ModuleDeclarationTree;
 import org.sonar.plugins.java.api.tree.ModuleDirectiveTree;
-import org.sonar.plugins.java.api.tree.ModuleNameTree;
 import org.sonar.plugins.java.api.tree.PackageDeclarationTree;
 import org.sonar.plugins.java.api.tree.StatementTree;
-import org.sonar.plugins.java.api.tree.SyntaxToken;
 import org.sonar.plugins.java.api.tree.SyntaxTrivia;
 import org.sonar.plugins.java.api.tree.Tree;
 import org.sonar.plugins.java.api.tree.TypeParameterTree;
@@ -233,20 +228,6 @@ import java.util.Map;
 @ParametersAreNonnullByDefault
 public class JParser {
 
-  public static boolean ENABLED;
-  private static boolean COMPARE_COMMENTS = Boolean.getBoolean("sonar.java.internal.ecj.compare_comments");
-  private static boolean COMPARE_TREES = Boolean.getBoolean("sonar.java.internal.ecj.compare_trees");
-
-  static {
-    ENABLED = Boolean.parseBoolean(System.getProperty("sonar.java.internal.ecj", "true"));
-    if (ENABLED) {
-      System.err.println("Using ECJ parser"
-        + (COMPARE_COMMENTS ? " (compare comments)" : "")
-        + (COMPARE_TREES ? " (compare trees)" : "")
-      );
-    }
-  }
-
   /**
    * @param unitName see {@link ASTParser#setUnitName(String)}
    * @throws RecognitionException in case of syntax error
@@ -264,13 +245,7 @@ public class JParser {
       new String[]{},
       true
     );
-    // TODO Should be set to "module-info.java" when parsing module descriptor, otherwise
-    // Syntax error on token "module", module expected
-    // and module declaration will be null
     astParser.setUnitName(unitName);
-
-    // TODO try
-//    astParser.setStatementsRecovery(true);
 
     astParser.setResolveBindings(false);
     astParser.setBindingsRecovery(true);
@@ -283,11 +258,6 @@ public class JParser {
       if (!problem.isError()) {
         continue;
       }
-
-      // Note that some tests pass even in presence of errors such as "Duplicate method"
-      String message = "line " + problem.getSourceLineNumber() + ": " + problem.getMessage();
-      System.err.println(message);
-
       final int line = problem.getSourceLineNumber();
       final int column = astNode.getColumnNumber(problem.getSourceStart());
       throw new RecognitionException(line, "Parse error at line " + line + " column " + column + ": " + problem.getMessage());
@@ -299,51 +269,7 @@ public class JParser {
 
     CompilationUnitTree tree = converter.convertCompilationUnit(astNode);
     setParents(tree);
-
-    // TODO remove debug
-
-    tree.accept(new BaseTreeVisitor());
-
-    if (COMPARE_COMMENTS) {
-      List<String> trivias = new ArrayList<>();
-      collectTrivias(trivias, tree);
-      List<String> comments = new ArrayList<>();
-      for (Object o : converter.compilationUnit.getCommentList()) {
-        Comment c = (Comment) o;
-        comments.add(
-          converter.compilationUnit.getLineNumber(c.getStartPosition())
-            + ":"
-            + converter.tokenManager.getSource().substring(c.getStartPosition(), c.getStartPosition() + c.getLength())
-        );
-      }
-      if (trivias.size() != comments.size()) {
-        System.err.println("Incorrect number of trivias:");
-        System.err.println(trivias);
-        System.err.println(comments);
-
-        comments.removeAll(trivias);
-        System.err.println(comments);
-        throw new IllegalStateException();
-      }
-    }
-
-    if (COMPARE_TREES) {
-      CompilationUnitTree oldTree = (CompilationUnitTree) JavaParser.createParser().parse(source);
-      TreeFormatter.compare(tree, oldTree);
-    }
-
     return tree;
-  }
-
-  private static void collectTrivias(List<String> result, Tree node) {
-    if (node.is(Tree.Kind.TOKEN)) {
-      ((SyntaxToken) node).trivias().forEach(syntaxTrivia -> result.add(syntaxTrivia.startLine() + ":" + syntaxTrivia.comment()));
-    }
-    Iterator<? extends Tree> childrenIterator = iteratorFor(node);
-    while (childrenIterator.hasNext()) {
-      Tree child = childrenIterator.next();
-      collectTrivias(result, child);
-    }
   }
 
   private static void setParents(Tree node) {
