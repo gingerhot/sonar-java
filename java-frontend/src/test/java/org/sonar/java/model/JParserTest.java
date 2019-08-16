@@ -28,10 +28,8 @@ import org.sonar.java.resolve.SemanticModel;
 import org.sonar.plugins.java.api.tree.BlockTree;
 import org.sonar.plugins.java.api.tree.ClassTree;
 import org.sonar.plugins.java.api.tree.CompilationUnitTree;
-import org.sonar.plugins.java.api.tree.ExpressionStatementTree;
-import org.sonar.plugins.java.api.tree.MethodInvocationTree;
+import org.sonar.plugins.java.api.tree.EnumConstantTree;
 import org.sonar.plugins.java.api.tree.MethodTree;
-import org.sonar.plugins.java.api.tree.ParameterizedTypeTree;
 import org.sonar.plugins.java.api.tree.Tree;
 import org.sonar.plugins.java.api.tree.VariableTree;
 
@@ -42,9 +40,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
-/**
- * TODO test shared identifiers in enum
- */
 public class JParserTest {
 
   @Test
@@ -191,6 +186,14 @@ public class JParserTest {
 
     test("enum E { C() }");
     test("enum E { C { } }");
+
+    CompilationUnitTree cu = test("enum E { C }");
+    ClassTree t = (ClassTree) cu.types().get(0);
+    EnumConstantTree c = (EnumConstantTree) t.members().get(0);
+    assertSame(
+      c.simpleName(),
+      c.initializer().identifier()
+    );
   }
 
   @Test
