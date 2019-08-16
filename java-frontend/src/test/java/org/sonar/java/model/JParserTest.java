@@ -114,7 +114,7 @@ public class JParserTest {
   public void extended_operands() {
     test("class C { void m() { m( 1 - 2 - 3 ); } }");
 
-    // TODO no extendedOperands in case of parenthesises ?
+    // no extendedOperands in case of parentheses:
     test("class C { void m() { m( (1 - 2) - 3 ); } }");
     test("class C { void m() { m( 1 - (2 - 3) ); } }");
   }
