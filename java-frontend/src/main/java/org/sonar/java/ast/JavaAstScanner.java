@@ -24,11 +24,8 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.sonar.sslr.api.RecognitionException;
 import com.sonar.sslr.api.typed.ActionParser;
-
-import java.io.File;
 import java.io.InterruptedIOException;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.sonar.api.batch.fs.InputFile;
