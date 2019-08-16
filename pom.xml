@@ -287,7 +287,11 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <configuration>
-          <failOnBlacklist>false</failOnBlacklist>
+          <!-- TODO remove custom configuration after upgrade of parent POM - see https://jira.sonarsource.com/browse/PARENTOSS-109 -->
+          <includedLicenses>apache_v2|bsd|epl_v1|epl_v2|lgpl_v3|mit</includedLicenses>
+          <licenseMerges combine.children="append">
+            <licenseMerge>epl_v2|Eclipse Public License - v 2.0</licenseMerge>
+          </licenseMerges>
         </configuration>
       </plugin>
 
